@@ -1,12 +1,67 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage, dialog } = require('electron');
 const path = require('path');
+const { execSync } = require('child_process');
 const RuleStore = require('./lib/rule-store');
 const RamOptimizer = require('./lib/ram-optimizer');
 const ProcessMonitor = require('./lib/process-monitor');
+const AppScanner = require('./lib/app-scanner');
+const GameDetector = require('./lib/game-detector');
+
+function isRunningAsAdmin() {
+  if (process.platform !== 'win32') return true;
+  try {
+    execSync('fltmc', { stdio: 'ignore' });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function ensureAdminPrivileges() {
+  if (process.platform !== 'win32') return;
+
+  if (isRunningAsAdmin()) {
+    console.log('[Voldena Engine] Uygulama Yönetici (Administrator) yetkileriyle aktif.');
+    return;
+  }
+
+  if (process.argv.includes('--elevated-attempted')) {
+    console.warn('[Voldena Engine] Yönetici izni kullanıcı tarafından reddedildi, standart modda devam ediliyor.');
+    return;
+  }
+
+  console.log('[Voldena Engine] Uygulama açılışında tek seferlik Yönetici (UAC) izni isteniyor...');
+  try {
+    const isPackaged = app.isPackaged;
+    const exe = process.execPath;
+
+    if (isPackaged) {
+      const args = process.argv.slice(1).concat(['--elevated-attempted']);
+      const argStr = args.map(a => `\`"${a}\`"`).join(' ');
+      const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -Verb RunAs`;
+      execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
+    } else {
+      const cwd = process.cwd();
+      const args = ['.', ...process.argv.slice(2), '--elevated-attempted'];
+      const argStr = args.map(a => `\`"${a}\`"`).join(' ');
+      const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -WorkingDirectory "${cwd}" -Verb RunAs`;
+      execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
+    }
+
+    app.quit();
+    process.exit(0);
+  } catch (err) {
+    console.warn('[Voldena Engine] UAC yükseltme isteği iptal edildi:', err.message);
+  }
+}
+
+// Request admin elevation on startup
+ensureAdminPrivileges();
 
 let mainWindow = null;
 let tray = null;
 let ruleStore = null;
+let gameDetector = null;
 let processMonitor = null;
 let memoryInterval = null;
 
@@ -16,15 +71,15 @@ function createWindow() {
   const appIcon = nativeImage.createFromPath(logoPath);
 
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 760,
-    minWidth: 940,
-    minHeight: 660,
+    width: 1180,
+    height: 790,
+    minWidth: 990,
+    minHeight: 680,
     title: 'Voldena Oyun Hızlandırıcısı',
     icon: appIcon,
     frame: false,
     transparent: false,
-    backgroundColor: '#0a0d14',
+    backgroundColor: '#0a0e17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -42,7 +97,7 @@ function createWindow() {
       if (Notification.isSupported() && settings.notifyOnAction) {
         new Notification({
           title: 'Voldena Oyun Hızlandırıcısı',
-          body: 'Sistem tepsisinde (System Tray) çalışmaya devam ediyor.',
+          body: 'Sistem tepsisinde (System Tray) izlemeye devam ediyor.',
           icon: logoPath
         }).show();
       }
@@ -78,8 +133,8 @@ function createTray() {
       {
         label: 'Hızlı RAM Temizle',
         click: async () => {
-          await RamOptimizer.trimWorkingSets();
-          if (mainWindow) {
+          const res = await RamOptimizer.trimWorkingSets();
+          if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('memory-update', RamOptimizer.getSystemMemoryStats());
           }
         }
@@ -115,8 +170,16 @@ function createTray() {
 
 app.whenReady().then(() => {
   ruleStore = new RuleStore();
+  gameDetector = new GameDetector(ruleStore);
 
-  processMonitor = new ProcessMonitor(ruleStore, (state) => {
+  // Background auto-scan for game libraries on startup
+  gameDetector.scanAllGameLibraries().then(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('games-scanned', gameDetector.discoveredGames);
+    }
+  }).catch(e => console.error('Oyun kütüphaneleri tarama hatası:', e));
+
+  processMonitor = new ProcessMonitor(ruleStore, gameDetector, (state) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('status-changed', state);
     }
@@ -127,13 +190,13 @@ app.whenReady().then(() => {
       if (state.status === 'active') {
         new Notification({
           title: `Voldena - ${state.activeRule.alias || state.activeRule.name} Başladı`,
-          body: `Ultra Optimizasyon uygulandı. Oyun kapanınca kapatılan uygulamalar otomatik yeniden açılacaktır.`,
+          body: `Ultra Optimizasyon uygulandı. Oyun kapanınca kapatılan uygulamalar otomatik geri açılacaktır.`,
           icon: logoPath
         }).show();
       } else if (state.status === 'idle' && state.previousRule) {
         new Notification({
           title: 'Voldena - Oyun Kapandı',
-          body: `${state.previousRule.alias || state.previousRule.name} kapandı. Arka plan uygulamaları otomatik geri açıldı.`,
+          body: `${state.previousRule.alias || state.previousRule.name} kapandı. Kapatılan uygulamalar geri açıldı.`,
           icon: logoPath
         }).show();
       }
@@ -170,12 +233,13 @@ app.whenReady().then(() => {
     });
   } catch (e) {}
 
-  // IPC Handlers
+  // Rule Handlers
   ipcMain.handle('get-rules', () => ruleStore.getRules());
   ipcMain.handle('add-rule', (_, rule) => ruleStore.addRule(rule));
   ipcMain.handle('update-rule', (_, id, rule) => ruleStore.updateRule(id, rule));
   ipcMain.handle('delete-rule', (_, id) => ruleStore.deleteRule(id));
 
+  // Settings Handlers
   ipcMain.handle('get-settings', () => ruleStore.getSettings());
   ipcMain.handle('update-settings', (_, newSettings) => {
     const updated = ruleStore.updateSettings(newSettings);
@@ -191,9 +255,19 @@ app.whenReady().then(() => {
     return updated;
   });
 
+  // Protected Apps Handlers
   ipcMain.handle('get-protected-apps', () => ruleStore.getProtectedApps());
   ipcMain.handle('update-protected-apps', (_, apps) => ruleStore.updateProtectedApps(apps));
 
+  // Game Detector & Library Handlers
+  ipcMain.handle('scan-game-libraries', () => gameDetector.scanAllGameLibraries());
+  ipcMain.handle('get-discovered-games', () => gameDetector.getDiscoveredGames());
+  ipcMain.handle('add-custom-game-path', (_, targetPath) => gameDetector.addCustomGamePath(targetPath));
+  ipcMain.handle('remove-custom-game-path', (_, targetPath) => gameDetector.removeCustomGamePath(targetPath));
+  ipcMain.handle('get-custom-game-paths', () => ruleStore.getCustomGamePaths());
+  ipcMain.handle('save-verified-games', (_, games) => ruleStore.updateVerifiedGames(games));
+
+  // Memory & Optimizer Handlers
   ipcMain.handle('get-memory-stats', () => RamOptimizer.getSystemMemoryStats());
   ipcMain.handle('get-detailed-processes', () => RamOptimizer.getDetailedProcesses());
 
@@ -228,11 +302,18 @@ app.whenReady().then(() => {
     const set = await processMonitor.fetchRunningProcesses();
     return Array.from(set).sort();
   });
+
+  // App Scanner & Catalog Endpoints
+  ipcMain.handle('get-all-apps', () => AppScanner.getAllAppsDataset());
+  ipcMain.handle('get-popular-apps', () => AppScanner.getPopularApps());
+  ipcMain.handle('get-installed-apps', (_, forceRefresh) => AppScanner.getInstalledApps(forceRefresh));
+  ipcMain.handle('get-running-apps', () => AppScanner.getRunningProcesses());
+  ipcMain.handle('resolve-exe-path', (_, nameOrExe) => AppScanner.resolveExecutablePath(nameOrExe));
   
+  // File & Folder Dialogs
   ipcMain.handle('select-file', async () => {
-    const { dialog } = require('electron');
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Uygulama veya Kısayol Seç',
+      title: 'Uygulama, Oyun veya Kısayol Seç',
       properties: ['openFile'],
       filters: [
         { name: 'Çalıştırılabilir Dosyalar ve Kısayollar', extensions: ['exe', 'bat', 'cmd', 'lnk', 'url'] },
@@ -245,6 +326,18 @@ app.whenReady().then(() => {
     return null;
   });
 
+  ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Oyun veya Kütüphane Klasörü Seç (SteamLibrary, Games vb.)',
+      properties: ['openDirectory']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+
+  ipcMain.handle('is-admin', () => isRunningAsAdmin());
   ipcMain.handle('get-status', () => processMonitor.getStatus());
 
   // Window Controls IPC

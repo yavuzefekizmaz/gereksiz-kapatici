@@ -4,16 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voldena Oyun Hızlandırıcısı</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-  <!-- Frameless Custom Titlebar with Logo -->
+  <!-- Frameless Custom Titlebar -->
   <div class="titlebar">
     <div class="titlebar-brand">
       <img src="assets/logo.png" alt="Voldena Logo">
-      <span>VOLDENA</span> <span style="font-size: 10.5px; opacity: 0.75; font-weight: normal; margin-left: 4px;">ULTRA OYUN HIZLANDIRICISI</span>
+      <span class="brand-text">VOLDENA</span>
+      <span class="brand-tag">ULTRA GAME ENGINE</span>
+      <span class="brand-tag brand-admin" id="titlebar-admin-badge" title="Tüm süreç ve servisler tek seferde yönetici olarak yönetiliyor">
+        <i class="fa-solid fa-shield-halved"></i> YÖNETİCİ MODU
+      </span>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn minimize" id="btn-minimize" title="Simge Durumuna Küçült"></button>
@@ -24,127 +31,154 @@
 
   <div class="app-container">
     <!-- Sidebar Navigation -->
-    <div class="sidebar">
-      <ul class="nav-menu">
-        <li class="nav-item active" data-tab="dashboard">
-          <i class="fa-solid fa-gauge-high"></i> Dashboard
-        </li>
-        <li class="nav-item" data-tab="game-optimization">
-          <i class="fa-solid fa-gamepad"></i> Oyun Optimizasyonu
-        </li>
-        <li class="nav-item" data-tab="launch-settings">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Oyun Açılış Ayarları
-        </li>
-        <li class="nav-item" data-tab="presets">
-          <i class="fa-solid fa-sliders"></i> Optimizasyon Seviyesi
-        </li>
-        <li class="nav-item" data-tab="protected">
-          <i class="fa-solid fa-shield-halved"></i> Korumalı Uygulamalar
-        </li>
-        <li class="nav-item" data-tab="settings">
-          <i class="fa-solid fa-gear"></i> Ayarlar
-        </li>
-      </ul>
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <ul class="nav-menu">
+          <li class="nav-item active" data-tab="dashboard">
+            <i class="fa-solid fa-gauge-high"></i>
+            <span>Dashboard</span>
+          </li>
+          <li class="nav-item" data-tab="game-optimization">
+            <i class="fa-solid fa-gamepad"></i>
+            <span>Özel Oyun Profilleri</span>
+          </li>
+          <li class="nav-item" data-tab="auto-game-engine">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>Otomatik Oyun Algılama</span>
+          </li>
+          <li class="nav-item" data-tab="protected">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Korumalı Uygulamalar</span>
+          </li>
+          <li class="nav-item" data-tab="settings">
+            <i class="fa-solid fa-gear"></i>
+            <span>Ayarlar</span>
+          </li>
+        </ul>
+      </div>
 
-      <!-- System Status Badge -->
+      <!-- System Live Status Badge -->
       <div class="system-badge">
-        <div class="system-badge-header">SİSTEM DURUMU</div>
+        <div class="system-badge-header">
+          <span class="pulse-ring"></span>
+          <span>SİSTEM DURUMU</span>
+        </div>
         <div class="system-badge-status" id="badge-status-text">
           <span class="status-dot" id="status-dot"></span>
           <span id="status-label">Arka Plan İzleniyor</span>
         </div>
       </div>
-    </div>
+    </aside>
 
-    <!-- Content Pages Area -->
-    <div class="content-area">
+    <!-- Main Content Area -->
+    <main class="content-area">
 
       <!-- TAB 1: DASHBOARD -->
-      <div class="tab-content active" id="tab-dashboard">
-        <div class="section-header" style="display: flex; align-items: center; gap: 16px;">
-          <img src="assets/logo.png" style="height: 48px; width: auto;" alt="Logo">
+      <section class="tab-content active" id="tab-dashboard">
+        <div class="section-header hero-header">
+          <div class="hero-logo-box">
+            <img src="assets/logo.png" alt="Logo">
+          </div>
           <div>
-            <h1 class="section-title">Canlı Sistem & Ultra Oyun Durum Paneli</h1>
-            <p class="section-desc">Voldena arka planda sessizce çalışarak hedef oyunlar açıldığında sistemi otomatik ultra hızlandırır.</p>
+            <h1 class="section-title">Canlı Sistem & Ultra Oyun Paneli</h1>
+            <p class="section-desc">Voldena arka planda sessizce çalışır; hedef veya otomatik algılanan bir oyun açıldığında sistemi ultra hızlandırır, oyun bittiğinde kapatılan uygulamaları otomatik geri açar.</p>
           </div>
         </div>
 
-        <!-- Metric Cards -->
+        <!-- Metric Cards Grid -->
         <div class="cards-grid">
-          <div class="glass-card">
-            <div class="metric-card-title">Kullanılan RAM (Toplam / Kullanılan)</div>
+          <div class="glass-card metric-card">
+            <div class="metric-card-header">
+              <span class="metric-card-title">Kullanılan RAM Bellek</span>
+              <i class="fa-solid fa-memory card-icon"></i>
+            </div>
             <div class="metric-value" id="val-ram-used">
-              0.0 <span class="metric-unit">GB</span>
+              0.0 <span class="metric-unit">GB / 0.0 GB</span>
             </div>
             <div class="progress-bar-bg">
               <div class="progress-bar-fill" id="bar-ram-fill" style="width: 0%;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 8px; color: var(--text-muted);">
+            <div class="metric-footer">
               <span>Kullanım: <strong id="val-ram-percent">0%</strong></span>
-              <span>Toplam Sistem RAM: <strong id="val-ram-total">0 GB</strong></span>
+              <span>Toplam: <strong id="val-ram-total">0 GB</strong></span>
             </div>
           </div>
 
-          <div class="glass-card">
-            <div class="metric-card-title">Aktif Oyun / Kural Modu</div>
-            <div class="metric-value" id="val-active-rule-name" style="font-size: 22px; color: var(--primary);">
+          <div class="glass-card metric-card">
+            <div class="metric-card-header">
+              <span class="metric-card-title">Aktif Oyun / Kural Modu</span>
+              <i class="fa-solid fa-crosshairs card-icon"></i>
+            </div>
+            <div class="metric-value" id="val-active-rule-name">
               Sistem Boşta
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;" id="val-active-rule-sub">
+            <div class="metric-subtext" id="val-active-rule-sub">
               Şu an arka planda izlenen aktif oyun yok.
             </div>
           </div>
 
-          <div class="glass-card">
-            <div class="metric-card-title">Aktif Optimizasyon Seviyesi</div>
-            <div class="metric-value" id="val-active-preset-badge">
-              <span class="badge badge-medium" style="font-size: 16px; padding: 6px 14px;">Orta Seviye</span>
+          <div class="glass-card metric-card">
+            <div class="metric-card-header">
+              <span class="metric-card-title">Optimizasyon Seviyesi</span>
+              <i class="fa-solid fa-bolt card-icon"></i>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">
-              RAM temizliği + gereksiz uygulamaların kapatılması.
+            <div class="metric-value" id="val-active-preset-badge">
+              <span class="badge badge-medium">Orta Mod</span>
+            </div>
+            <div class="metric-subtext">
+              RAM temizliği + Uygulamaları kapatma ve geri açma.
             </div>
           </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="glass-card" style="margin-bottom: 28px;">
-          <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">Hızlı Eylemler & Ultra Temizlik</h3>
-          <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+        <!-- Quick Actions Card -->
+        <div class="glass-card quick-actions-card">
+          <div class="card-title-row">
+            <h3 class="card-heading"><i class="fa-solid fa-bolt-lightning"></i> Hızlı Sistem & RAM Eylemleri</h3>
+          </div>
+          <div class="quick-buttons-row">
             <button class="btn btn-primary" id="btn-quick-ram">
               <i class="fa-solid fa-broom"></i> RAM'i Anında Temizle (WorkingSet Trim)
             </button>
             <button class="btn btn-secondary" id="btn-emergency-explorer">
-              <i class="fa-solid fa-window-restore"></i> Acil Explorer.exe Başlat
+              <i class="fa-solid fa-window-restore"></i> Acil Explorer.exe Başlat (Ctrl+Alt+R)
+            </button>
+            <button class="btn btn-primary btn-open-rule-modal" data-mode="new">
+              <i class="fa-solid fa-plus"></i> Yeni Oyun Kuralı Ekle
             </button>
           </div>
         </div>
 
-        <!-- Dashboard Rules Summary -->
+        <!-- Defined Rules Summary -->
         <div class="glass-card">
-          <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">Tanımlı Oyun Hızlandırma Kuralları (Düzenlemek için Tıklayın)</h3>
+          <div class="card-title-row" style="margin-bottom: 16px;">
+            <h3 class="card-heading"><i class="fa-solid fa-list-check"></i> Tanımlı Oyun Hızlandırma Kuralları</h3>
+            <span class="text-muted" style="font-size: 12px;">Düzenlemek için kurala tıklayın</span>
+          </div>
           <div id="dashboard-rules-summary" class="rules-list">
-            <!-- Dynamic summary items -->
+            <!-- Rendered dynamically -->
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- TAB 2: OYUN OPTİMİZASYONU -->
-      <div class="tab-content" id="tab-game-optimization">
-        <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+      <!-- TAB 2: ÖZEL OYUN PROFİLLERİ & BAŞLATICI -->
+      <section class="tab-content" id="tab-game-optimization">
+        <div class="section-header flex-header">
           <div>
-            <h1 class="section-title">Oyun Optimizasyonu (Arka Plan Kapatma)</h1>
-            <p class="section-desc">Oyun çalışırken kasma/donma yapmaması için kapatılacak uygulamaları ve oyun bittiğinde otomatik geri açmayı ayarlayın.</p>
+            <h1 class="section-title">Özel Oyun Profilleri & Başlatıcı</h1>
+            <p class="section-desc">Belirli bir oyun açıldığında kapatılacak gereksiz uygulamaları ve otomatik başlatılacak yardımcı araçları (Discord, Spotify, linkler vb.) tek bir profilde yapılandırın.</p>
           </div>
-          <button class="btn btn-primary btn-open-modal-trigger">
-            <i class="fa-solid fa-plus"></i> Yeni Oyun Optimizasyonu Ekle
+          <button class="btn btn-primary btn-open-rule-modal" data-mode="new">
+            <i class="fa-solid fa-plus"></i> Yeni Oyun Profili Ekle
           </button>
         </div>
 
-        <div class="glass-card" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-weight: 700; font-size: 14.5px;">Oyun Kapandığında Kapatılan Uygulamaları Otomatik Geri Aç</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Oyun bittiğinde Chrome, Discord gibi kapatılan uygulamalar otomatik tekrar başlatılır.</div>
+        <!-- Global Engine Settings Card -->
+        <div class="glass-card settings-banner-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-title">Oyun Kapandığında Kapatılan Uygulamaları Otomatik Geri Aç (Auto-Restore)</div>
+              <div class="setting-desc">Oyun bittiğinde Chrome, Discord, Spotify gibi kapatılan uygulamalar otomatik yeniden başlatılır.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="setting-auto-restore" checked>
@@ -152,10 +186,10 @@
             </label>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 14px;">
-            <div>
-              <div style="font-weight: 700; font-size: 14.5px;">Smart-Sweep: Korumalılar Dışındaki TÜM Arka Plan İşlemlerini Temizle</div>
-              <div style="font-size: 12px; color: var(--text-muted);">MSI Center gibi görev çubuğunda görünmeyen 20-30 adet gereksiz süreci tek tıkla durdurur. Korumalı liste hariç tutulur.</div>
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-title">Smart-Sweep: Korumalılar Dışındaki TÜM Arka Plan İşlemlerini Kapat</div>
+              <div class="setting-desc">MSI Center, RGB yazılımları gibi 20-30 adet gereksiz arka plan sürecini tek seferde temizler.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="setting-smart-sweep">
@@ -167,253 +201,513 @@
         <div id="game-optimization-rules" class="rules-list">
           <!-- Rendered dynamically -->
         </div>
-      </div>
+      </section>
 
-      <!-- TAB 3: OYUN AÇILIŞ AYARI -->
-      <div class="tab-content" id="tab-launch-settings">
-        <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+      <!-- TAB 3: OTOMATİK OYUN ALGILAMA (AKILLI GENEL MOD) -->
+      <section class="tab-content" id="tab-auto-game-engine">
+        <div class="section-header flex-header">
           <div>
-            <h1 class="section-title">Oyun Açılış Ayarları (Otomatik Başlatma & Özel Tetikleme)</h1>
-            <p class="section-desc">Bir oyun veya program başladığında (örneğin Discord), yanında otomatik açılmasını istediğiniz alanlar, domainler veya companion araçlar.</p>
+            <h1 class="section-title">Otomatik Oyun Algılama (Akıllı Mod)</h1>
+            <p class="section-desc">Listeye tek tek eklemediğiniz herhangi bir Steam, Epic, Riot veya özel klasördeki oyun açıldığında Voldena oyunu otomatik algılar ve arka planı temizler.</p>
           </div>
-          <button class="btn btn-primary btn-open-modal-trigger">
-            <i class="fa-solid fa-plus"></i> Yeni Açılış Tetikleyicisi Ekle
+          <button class="btn btn-secondary" id="btn-scan-game-libraries" type="button">
+            <i class="fa-solid fa-rotate-right"></i> Kütüphaneleri Otomatik Tara
           </button>
         </div>
 
-        <div id="launch-settings-rules" class="rules-list">
-          <!-- Rendered dynamically -->
+        <!-- Master Auto-Detection Banner -->
+        <div class="glass-card settings-banner-card" style="margin-bottom: 20px;">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-title" style="font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i>
+                Akıllı Otomatik Oyun Algılama Motoru
+              </div>
+              <div class="setting-desc">Açık olduğunda, bilgisayarınızda başlatılan tüm oyunlar otomatik algılanır ve Ayarlar'daki genel optimizasyon seviyesi uygulanır.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-auto-game-detection" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <!-- TAB 4: PRESETS -->
-      <div class="tab-content" id="tab-presets">
+        <!-- Discovered Games List Card -->
+        <div class="glass-card">
+          <div class="card-title-row" style="margin-bottom: 14px;">
+            <div>
+              <h3 class="card-heading"><i class="fa-solid fa-gamepad"></i> Algılanan Oyun Kütüphaneleri & Oyunlarım</h3>
+              <div class="text-muted" style="font-size: 12px; margin-top: 2px;">
+                Bulunan Oyun Sayısı: <strong id="count-discovered-games" style="color: var(--primary);">0</strong>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="form-input" id="input-search-discovered-games" placeholder="Oyun ara..." style="width: 200px; padding: 6px 10px; font-size: 12px;">
+            </div>
+          </div>
+
+          <div class="discovered-games-container" id="discovered-games-container">
+            <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+              <i class="fa-solid fa-spinner fa-spin"></i> Oyun kütüphaneleri taranıyor...
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons requested by user -->
+          <div class="discovered-games-footer">
+            <div class="text-muted" style="font-size: 12px;" id="lbl-verified-status">
+              Tüm oyunlarınız otomatik taranarak listelendi.
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" id="btn-missing-game-add" type="button">
+                <i class="fa-solid fa-plus"></i> Eksik Oyunum Var (Manuel Ekle)
+              </button>
+              <button class="btn btn-primary" id="btn-verify-all-games" type="button">
+                <i class="fa-solid fa-circle-check"></i> Tüm Oyunlarım Bunlar (Doğrula & Kaydet)
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: PROTECTED APPS (WHITELIST) -->
+      <section class="tab-content" id="tab-protected">
         <div class="section-header">
-          <h1 class="section-title">Optimizasyon Seviyeleri</h1>
-          <p class="section-desc">Oyunlar başladığında sistemin ne derecede performans moduna geçeceğini seçin.</p>
-        </div>
-
-        <div class="preset-grid">
-          <!-- LOW PRESET -->
-          <div class="preset-card" data-preset="low" id="preset-low">
-            <div>
-              <div class="preset-icon"><i class="fa-solid fa-feather-pointed"></i></div>
-              <div class="preset-title">Düşük Seviye (Low)</div>
-              <div class="preset-desc">
-                Hiçbir uygulamayı kapatmaz. Yalnızca Windows RAM çalışma kümelerini boşaltarak arka plan bellek tüketimini düşürür.
-              </div>
-            </div>
-            <div style="margin-top: 16px;">
-              <span class="badge badge-low">Uygulama Kapatmaz</span>
-            </div>
-          </div>
-
-          <!-- MEDIUM PRESET -->
-          <div class="preset-card selected" data-preset="medium" id="preset-medium">
-            <div>
-              <div class="preset-icon"><i class="fa-solid fa-bolt"></i></div>
-              <div class="preset-title">Orta Seviye (Medium - Önerilen)</div>
-              <div class="preset-desc">
-                Seçilen oyun başladığında belirlenen gereksiz arka plan uygulamalarını kapatır ve RAM önbellek temizliğini gerçekleştirir. Oyun bitince uygulamaları geri açar.
-              </div>
-            </div>
-            <div style="margin-top: 16px;">
-              <span class="badge badge-medium">Kapatma + RAM + Geri Açma</span>
-            </div>
-          </div>
-
-          <!-- HIGH PRESET -->
-          <div class="preset-card" data-preset="high" id="preset-high">
-            <div>
-              <div class="preset-icon"><i class="fa-solid fa-rocket"></i></div>
-              <div class="preset-title">Yüksek Seviye (High / Ultra Game Mode)</div>
-              <div class="preset-desc">
-                Oyun CPU önceliğini **YÜKSEK (HIGH)** yapar, Windows gereksiz servislerini durdurur. İsteğe göre **Explorer'ı kapatır veya açık bırakır**. Oyun kapanınca her şey geri açılır.
-              </div>
-            </div>
-            <div style="margin-top: 16px;">
-              <span class="badge badge-high">Sert Ultra FPS + CPU High Priority</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 5: PROTECTED APPS -->
-      <div class="tab-content" id="tab-protected">
-        <div class="section-header">
-          <h1 class="section-title">Korumalı Uygulamalar (Kapatılmayacaklar)</h1>
-          <p class="section-desc">Otomasyon veya temizlik ne olursa olsun kesinlikle açık kalması gereken yazılımlar.</p>
+          <h1 class="section-title">Korumalı Uygulamalar (Beyaz Liste)</h1>
+          <p class="section-desc">Otomasyon veya temizlik ne olursa olsun kesinlikle açık kalması gereken kritik yazılımlar.</p>
         </div>
 
         <div class="glass-card">
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-            Örneğin: VS Code, AnyDesk, OneDrive gibi uygulamalar bilgisayar açıldığında başlar ve bu listede oldukları sürece Voldena veya Smart-Sweep tarafından asla kapatılmazlar.
+          <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">
+            Bu listedeki uygulamalar (örneğin AnyDesk, VS Code, OneDrive, OBS Studio) Voldena veya Smart-Sweep tarafından asla kapatılmaz.
           </p>
 
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <input type="text" class="form-input" id="input-protected-app" placeholder="Örn: anydesk.exe" style="flex: 1;">
-            <button class="btn btn-primary" id="btn-add-protected">Ekle</button>
+          <div class="protected-add-bar">
+            <input type="text" class="form-input" id="input-protected-app" placeholder="Örn: anydesk.exe, code.exe..." style="flex: 1;">
+            <button class="btn btn-secondary" id="btn-browse-protected-picker" type="button">
+              <i class="fa-solid fa-list-check"></i> Uygulama Seçici
+            </button>
+            <button class="btn btn-secondary" id="btn-browse-protected-file" type="button" title="Bilgisayardan .exe Dosyası Seç">
+              <i class="fa-solid fa-folder-open"></i> Dosya Seç
+            </button>
+            <button class="btn btn-primary" id="btn-add-protected" type="button">
+              <i class="fa-solid fa-plus"></i> Ekle
+            </button>
           </div>
 
-          <div id="protected-apps-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <div style="margin-bottom: 14px; font-size: 12px; color: var(--text-dim);">
+            <span>Hızlı Önerilenler:</span>
+            <button class="btn-link quick-add-protected" data-app="code.exe">VS Code</button>
+            <button class="btn-link quick-add-protected" data-app="anydesk.exe">AnyDesk</button>
+            <button class="btn-link quick-add-protected" data-app="onedrive.exe">OneDrive</button>
+            <button class="btn-link quick-add-protected" data-app="obs64.exe">OBS Studio</button>
+          </div>
+
+          <div id="protected-apps-list" class="tags-container">
             <!-- Protected apps tags -->
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- TAB 6: SETTINGS -->
-      <div class="tab-content" id="tab-settings">
+      <section class="tab-content" id="tab-settings">
         <div class="section-header">
-          <h1 class="section-title">Uygulama Ayarları</h1>
-          <p class="section-desc">Arka plan çalışma ve başlangıç tercihlerini yapılandırın.</p>
+          <h1 class="section-title">Uygulama Ayarları & Optimizasyon Seviyesi</h1>
+          <p class="section-desc">Genel performans seviyesini, oyun kütüphanelerini ve başlangıç tercihlerini yapılandırın.</p>
         </div>
 
-        <div class="glass-card" style="display: flex; flex-direction: column; gap: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-weight: 700; font-size: 15px;">Bilgisayar Açılışında Otomatik Başlat</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Windows başladığında Voldena sessizce arkada çalışır.</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="setting-autostart">
-              <span class="slider"></span>
-            </label>
-          </div>
+        <!-- Global Optimization Level Card -->
+        <div class="glass-card" style="margin-bottom: 20px;">
+          <h3 class="card-heading" style="margin-bottom: 14px;">
+            <i class="fa-solid fa-sliders"></i> Genel / Otomatik Optimizasyon Seviyesi
+          </h3>
+          <p class="text-muted" style="font-size: 12.5px; margin-bottom: 14px;">
+            Özel kuralı olmayan veya otomatik algılanan oyunlar açıldığında hangi seviyede hızlandırma yapılacağını belirleyin.
+          </p>
 
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-weight: 700; font-size: 15px;">Kapatıldığında Sistem Tepsisine (System Tray) Al</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Çarpı tuşuna basıldığında uygulama tamamen kapanmaz, arkada izlemeye devam eder.</div>
+          <div class="preset-grid">
+            <div class="preset-card" data-preset="low" id="preset-low">
+              <div class="preset-top">
+                <div class="preset-icon low-icon"><i class="fa-solid fa-feather-pointed"></i></div>
+                <div class="preset-title">Düşük Seviye (Low)</div>
+                <p class="preset-desc">Yalnızca RAM çalışma kümelerini boşaltır, hiçbir uygulamayı kapatmaz.</p>
+              </div>
+              <div class="preset-bottom">
+                <span class="badge badge-low">Yalnızca RAM Boşaltma</span>
+              </div>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="setting-minimized">
-              <span class="slider"></span>
-            </label>
-          </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-weight: 700; font-size: 15px;">Masaüstü Bildirimleri Göster</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Oyun algılandığında ve temizlik yapıldığında bildirim gönderir.</div>
+            <div class="preset-card selected" data-preset="medium" id="preset-medium">
+              <div class="preset-top">
+                <div class="preset-icon medium-icon"><i class="fa-solid fa-bolt"></i></div>
+                <div class="preset-title">Orta Seviye (Medium - Önerilen)</div>
+                <p class="preset-desc">Gereksiz uygulamaları kapatır, RAM'i boşaltır ve oyun bitince her şeyi geri açar.</p>
+              </div>
+              <div class="preset-bottom">
+                <span class="badge badge-medium">Kapatma + RAM + Geri Açma</span>
+              </div>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="setting-notifications">
-              <span class="slider"></span>
-            </label>
+
+            <div class="preset-card" data-preset="high" id="preset-high">
+              <div class="preset-top">
+                <div class="preset-icon high-icon"><i class="fa-solid fa-rocket"></i></div>
+                <div class="preset-title">Yüksek Seviye (High / Ultra Mode)</div>
+                <p class="preset-desc">Oyun CPU önceliğini YÜKSEK yapar, Windows servislerini durdurur ve agresif RAM temizliği uygular.</p>
+              </div>
+
+              <!-- Integrated Explorer.exe Toggle directly inside Ultra Mode Card -->
+              <div class="preset-sub-toggle" onclick="event.stopPropagation();" title="Yüksek optimizasyon modunda bile Windows masaüstü kabuğunu açık tutar.">
+                <div class="sub-toggle-text">
+                  <span class="sub-toggle-title"><i class="fa-solid fa-window-maximize"></i> Explorer.exe Açık Kalsın</span>
+                  <span class="sub-toggle-desc">Görev çubuğu ve masaüstünü koru</span>
+                </div>
+                <label class="switch switch-sm">
+                  <input type="checkbox" id="setting-keep-explorer" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="preset-bottom">
+                <span class="badge badge-high">Ultra FPS + High Priority</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-    </div>
+        <!-- Spacious Modern Settings Grid -->
+        <div class="settings-grid">
+          <!-- Item 1: Auto Start on Boot -->
+          <div class="glass-card setting-card-item">
+            <div class="setting-item-left">
+              <div class="setting-icon-box icon-blue">
+                <i class="fa-solid fa-power-off"></i>
+              </div>
+              <div class="setting-text">
+                <div class="setting-title">Bilgisayar Açılışında Başlat</div>
+                <div class="setting-desc">Windows başladığında Voldena otomatik olarak arka planda sessizce izlemeye başlar.</div>
+              </div>
+            </div>
+            <div class="setting-item-right">
+              <label class="switch">
+                <input type="checkbox" id="setting-autostart">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Item 2: Start Minimized to Tray -->
+          <div class="glass-card setting-card-item">
+            <div class="setting-item-left">
+              <div class="setting-icon-box icon-cyan">
+                <i class="fa-solid fa-inbox"></i>
+              </div>
+              <div class="setting-text">
+                <div class="setting-title">Sistem Tepsisine (Tray) Küçült</div>
+                <div class="setting-desc">Kapat (X) butonuna basıldığında uygulama kapanmaz, arka planda oyunları izlemeye devam eder.</div>
+              </div>
+            </div>
+            <div class="setting-item-right">
+              <label class="switch">
+                <input type="checkbox" id="setting-minimized">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Item 3: Desktop Notifications -->
+          <div class="glass-card setting-card-item">
+            <div class="setting-item-left">
+              <div class="setting-icon-box icon-purple">
+                <i class="fa-solid fa-bell"></i>
+              </div>
+              <div class="setting-text">
+                <div class="setting-title">Masaüstü Bildirimleri</div>
+                <div class="setting-desc">Oyun algılandığında, RAM temizlendiğinde ve oyun bittiğinde ekranda bilgi bildirimi gösterir.</div>
+              </div>
+            </div>
+            <div class="setting-item-right">
+              <label class="switch">
+                <input type="checkbox" id="setting-notifications">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Item 4: Auto Game Detection Global Toggle -->
+          <div class="glass-card setting-card-item">
+            <div class="setting-item-left">
+              <div class="setting-icon-box icon-yellow">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div class="setting-text">
+                <div class="setting-title">Akıllı Otomatik Oyun Algılama</div>
+                <div class="setting-desc">Özel kuralı olmayan Steam, Epic ve Riot oyunları başladığında genel optimizasyon seviyesini uygular.</div>
+              </div>
+            </div>
+            <div class="setting-item-right">
+              <label class="switch">
+                <input type="checkbox" id="setting-auto-game-detection-settings" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- Modal 1: Rule Creation / Edit -->
+  <!-- MODAL 1: RULE CREATION / EDIT MODAL -->
   <div class="modal-overlay" id="modal-rule">
     <div class="modal-box">
       <div class="modal-header">
-        <div class="modal-title" id="modal-rule-title">Yeni Kural / Oyun Ayarı</div>
-        <button class="titlebar-btn close" id="btn-close-modal"></button>
+        <div class="modal-title" id="modal-rule-title">Yeni Oyun Kuralı</div>
+        <button class="modal-close-btn" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <input type="hidden" id="rule-form-editing-id" value="">
 
       <div class="form-group">
-        <label class="form-label">Kural / Oyun Adı</label>
-        <input type="text" class="form-input" id="rule-form-name" placeholder="Örn: Valorant Modu veya Discord">
+        <label class="form-label">Kural / Oyun Profil Adı</label>
+        <input type="text" class="form-input" id="rule-form-name" placeholder="Örn: Valorant Modu veya CS2 Modu">
       </div>
 
+      <!-- Trigger Game / Process -->
       <div class="form-group">
-        <label class="form-label">Tetikleyici Oyun / Süreç (.exe veya Arama)</label>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" class="form-input" id="rule-form-trigger" placeholder="Örn: VALORANT-Win64-Shipping.exe" style="flex: 1;">
-          <button class="btn btn-secondary" id="btn-browse-trigger-exe" type="button" style="padding: 0 12px; font-size: 12px;" title="Bilgisayardan .exe Dosyası Seç">
+        <label class="form-label">Tetikleyici Oyun / Süreç (.exe)</label>
+        <div class="input-with-buttons">
+          <input type="text" class="form-input" id="rule-form-trigger" placeholder="Örn: VALORANT-Win64-Shipping.exe veya cs2.exe" style="flex: 1;">
+          <button class="btn btn-secondary" id="btn-picker-trigger" type="button" title="Uygulama veya Oyun Listesinden Seç">
+            <i class="fa-solid fa-list-check"></i> Listeden Seç
+          </button>
+          <button class="btn btn-secondary" id="btn-browse-trigger-exe" type="button" title="Bilgisayardan .exe Dosyası Seç">
             <i class="fa-solid fa-folder-open"></i> Dosya Seç
           </button>
         </div>
       </div>
 
-      <!-- Kapatılacak Uygulamalar Interactive Tag Picker & Process Checklist Trigger -->
+      <!-- Close Targets (Kapatılacak Uygulamalar) -->
       <div class="form-group">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <label class="form-label">Oyun Optimizasyonu: Kapatılacak Uygulamalar</label>
-          <button class="btn btn-primary" id="btn-open-checklist-close" type="button" style="padding: 3px 10px; font-size: 11px;">
-            <i class="fa-solid fa-list-check"></i> Çalışan Süreçlerden Seç (Toplu)
+        <div class="form-label-row">
+          <label class="form-label">Kapatılacak Uygulamalar (Oyun Açılınca Kapanır)</label>
+        </div>
+        
+        <div class="manual-add-row">
+          <input type="text" class="form-input" id="input-manual-close" placeholder="Uygulama adı (.exe) yazın: discord.exe, chrome.exe..." style="flex: 1;">
+          <button class="btn btn-primary" id="btn-add-manual-close" type="button">
+            <i class="fa-solid fa-plus"></i> Ekle
           </button>
-        </div>
-        <div class="app-tag-picker" id="picker-close-container">
-          <div id="pills-close-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-        </div>
-      </div>
-
-      <!-- Açılacak Uygulamalar Interactive Tag Picker -->
-      <div class="form-group">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <label class="form-label">Oyun Açılış Ayarı: Otomatik Başlatılacak Yan Uygulama / Domain</label>
-          <button class="btn btn-secondary" id="btn-browse-launch-exe" type="button" style="padding: 3px 10px; font-size: 11px;">
+          <button class="btn btn-secondary" id="btn-open-picker-close" type="button">
+            <i class="fa-solid fa-list-check"></i> Uygulama Seçici
+          </button>
+          <button class="btn btn-secondary" id="btn-browse-close-exe" type="button" title="Dosya Seç">
             <i class="fa-solid fa-folder-open"></i> Dosya Seç
           </button>
         </div>
-        <div class="app-tag-picker" id="picker-launch-container">
-          <div id="pills-launch-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+
+        <div class="pills-container" id="pills-close-container">
+          <div id="pills-close-list" class="pills-list"></div>
         </div>
       </div>
 
+      <!-- Launch Targets (Otomatik Açılacak Yan Uygulamalar) -->
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label">Otomatik Başlatılacak Yan Uygulamalar / Linkler (İsteğe Bağlı)</label>
+        </div>
+
+        <div class="manual-add-row">
+          <input type="text" class="form-input" id="input-manual-launch" placeholder="Açılacak uygulama (.exe) veya link: spotify.exe, https://..." style="flex: 1;">
+          <button class="btn btn-primary" id="btn-add-manual-launch" type="button">
+            <i class="fa-solid fa-plus"></i> Ekle
+          </button>
+          <button class="btn btn-secondary" id="btn-open-picker-launch" type="button">
+            <i class="fa-solid fa-list-check"></i> Uygulama Seçici
+          </button>
+          <button class="btn btn-secondary" id="btn-browse-launch-exe" type="button" title="Dosya Seç">
+            <i class="fa-solid fa-folder-open"></i> Dosya Seç
+          </button>
+        </div>
+
+        <div class="pills-container" id="pills-launch-container">
+          <div id="pills-launch-list" class="pills-list"></div>
+        </div>
+      </div>
+
+      <!-- Optimization Level -->
       <div class="form-group">
         <label class="form-label">Optimizasyon Seviyesi</label>
         <select class="form-select" id="rule-form-level">
           <option value="low">Düşük (Yalnızca RAM Temizliği)</option>
           <option value="medium" selected>Orta (RAM + Belirtilen Uygulamaları Kapat + Geri Aç)</option>
-          <option value="high">Yüksek (Sert Ultra FPS + CPU High Priority + Servis Durdurma)</option>
+          <option value="high">Yüksek (Ultra FPS + CPU High Priority + Windows Servis Durdurma)</option>
         </select>
       </div>
 
-      <!-- Keep Explorer Toggle in Rule Modal -->
-      <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-        <div>
-          <div style="font-weight: 700; font-size: 13.5px; color: #fff;">Explorer'ı Kapatma (Masaüstü Kabuğunu Açık Tut)</div>
-          <div style="font-size: 11.5px; color: var(--text-muted);">Yüksek Ultra FPS modunda bile explorer.exe kapanmaz. Görev çubuğu açık kalır.</div>
+      <!-- Keep Explorer Toggle -->
+      <div class="form-group keep-explorer-row">
+        <div class="setting-text">
+          <div class="setting-title">Explorer.exe'yi Kapatma (Masaüstü Kabuğunu Açık Tut)</div>
+          <div class="setting-desc">Yüksek modda bile Windows görev çubuğu açık kalır.</div>
         </div>
         <label class="switch">
-          <input type="checkbox" id="rule-form-keep-explorer">
+          <input type="checkbox" id="rule-form-keep-explorer" checked>
           <span class="slider"></span>
         </label>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+      <div class="modal-actions">
         <button class="btn btn-secondary" id="btn-cancel-modal" type="button">İptal</button>
-        <button class="btn btn-primary" id="btn-save-rule" type="button">Kaydet ve Etkinleştir</button>
+        <button class="btn btn-primary" id="btn-save-rule" type="button">
+          <i class="fa-solid fa-check"></i> Kaydet ve Etkinleştir
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal 2: Process Checklist Modal (Visual App & Process Checklist with RAM details) -->
-  <div class="modal-overlay" id="modal-checklist">
-    <div class="modal-box">
+  <!-- MODAL 2: UNIVERSAL APP & PROCESS PICKER MODAL -->
+  <div class="modal-overlay" id="modal-app-picker">
+    <div class="modal-box modal-box-large">
       <div class="modal-header">
-        <div class="modal-title"><i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Açık Süreçler & Uygulama Seçim Ekranı</div>
-        <button class="titlebar-btn close" id="btn-close-checklist"></button>
+        <div class="modal-title">
+          <i class="fa-solid fa-cubes-stacked" style="color: var(--primary);"></i>
+          <span id="picker-modal-title">Uygulama & Süreç Seçici</span>
+        </div>
+        <button class="modal-close-btn" id="btn-close-app-picker"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-        Bilgisayarınızda o an çalışan uygulamaları RAM miktarlarıyla birlikte görün ve kurala eklemek istediklerinizi işaretleyin.
+      <!-- Search and Filter Bar -->
+      <div class="picker-search-bar">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" class="form-input search-input" id="input-app-picker-search" placeholder="Uygulama, oyun veya süreç adı ara (Discord, Chrome, CS2, MSI...)...">
+          <button class="clear-search-btn" id="btn-clear-picker-search" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button class="btn btn-secondary" id="btn-refresh-apps" title="Listeyi Yenile">
+          <i class="fa-solid fa-rotate-right"></i> Yenile
+        </button>
+      </div>
+
+      <!-- Picker Navigation Tabs -->
+      <div class="picker-tabs-row">
+        <button class="picker-tab-btn active" data-tab="popular">
+          <i class="fa-solid fa-fire"></i> Popüler Oyun & Araçlar
+        </button>
+        <button class="picker-tab-btn" data-tab="installed">
+          <i class="fa-solid fa-hard-drive"></i> Yüklü Programlar <span class="picker-count-badge" id="count-installed">0</span>
+        </button>
+        <button class="picker-tab-btn" data-tab="running">
+          <i class="fa-solid fa-microchip"></i> Çalışan İşlemler <span class="picker-count-badge" id="count-running">0</span>
+        </button>
+        <button class="picker-tab-btn" data-tab="manual">
+          <i class="fa-solid fa-keyboard"></i> Manuel / Dosya Seç
+        </button>
+      </div>
+
+      <!-- Picker Content Containers -->
+      <div class="picker-content-area">
+        <!-- Tab 1: Popular -->
+        <div class="picker-tab-pane active" id="pane-popular">
+          <div class="picker-grid" id="grid-popular-apps"></div>
+        </div>
+
+        <!-- Tab 2: Installed -->
+        <div class="picker-tab-pane" id="pane-installed">
+          <div class="picker-list" id="list-installed-apps"></div>
+        </div>
+
+        <!-- Tab 3: Running Processes -->
+        <div class="picker-tab-pane" id="pane-running">
+          <div class="picker-list" id="list-running-apps"></div>
+        </div>
+
+        <!-- Tab 4: Manual -->
+        <div class="picker-tab-pane" id="pane-manual">
+          <div class="manual-tab-box">
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Özel Süreç (.exe) veya Dosya Yolu Ekle</h4>
+            <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">Listede olmayan veya özel bir uygulamayı doğrudan adını yazarak veya bilgisayarınızdan seçerek ekleyebilirsiniz.</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+              <input type="text" class="form-input" id="input-picker-manual-text" placeholder="Örn: customgame.exe veya C:\Games\game.exe" style="flex: 1;">
+              <button class="btn btn-secondary" id="btn-picker-browse-file" type="button">
+                <i class="fa-solid fa-folder-open"></i> Dosya Seç (.exe)
+              </button>
+              <button class="btn btn-primary" id="btn-picker-manual-add" type="button">
+                <i class="fa-solid fa-plus"></i> Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Picker Footer -->
+      <div class="picker-footer">
+        <div class="picker-footer-left">
+          <span id="picker-selected-count-label">0 uygulama seçildi</span>
+          <button class="btn-link" id="btn-picker-select-all" type="button">Tümünü Seç</button>
+          <button class="btn-link" id="btn-picker-clear-all" type="button">Temizle</button>
+        </div>
+        <div class="picker-footer-right">
+          <button class="btn btn-secondary" id="btn-cancel-app-picker" type="button">İptal</button>
+          <button class="btn btn-primary" id="btn-apply-app-picker" type="button">
+            <i class="fa-solid fa-check"></i> Seçilenleri Ekle
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: MISSING GAME ADD CHOICE MODAL -->
+  <div class="modal-overlay" id="modal-missing-game">
+    <div class="modal-box" style="width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-folder-plus" style="color: var(--primary);"></i>
+          <span>Eksik Oyun Ekle</span>
+        </div>
+        <button class="modal-close-btn" id="btn-close-missing-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-muted" style="font-size: 13px; margin-bottom: 20px; line-height: 1.5;">
+        Listede yer almayan oyununuzu eklemek için doğrudan oyunun çalıştırılabilir dosyasını (`.exe`) veya oyunun kurulu olduğu klasörü seçin:
       </p>
 
-      <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-        <input type="text" class="form-input" id="input-checklist-filter" placeholder="Süreç veya uygulama adı ara (MSI, Chrome, Discord...)" style="flex: 1;">
-        <button class="btn btn-secondary" id="btn-checklist-select-all" type="button" style="padding: 0 12px; font-size: 11.5px;">Tümünü Seç</button>
-        <button class="btn btn-secondary" id="btn-checklist-clear" type="button" style="padding: 0 12px; font-size: 11.5px;">Temizle</button>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button class="btn btn-primary" id="btn-add-game-by-file" style="padding: 14px; font-size: 13.5px; justify-content: flex-start;">
+          <i class="fa-solid fa-file-arrow-up" style="font-size: 18px; margin-right: 6px;"></i>
+          <div>
+            <div style="font-weight: 700;">Tekil Oyun Dosyası Seç (.exe)</div>
+            <div style="font-size: 11.5px; font-weight: normal; opacity: 0.85;">Bilgisayarınızdaki oyunun .exe dosyasını seçin.</div>
+          </div>
+        </button>
+
+        <button class="btn btn-secondary" id="btn-add-game-by-folder" style="padding: 14px; font-size: 13.5px; justify-content: flex-start;">
+          <i class="fa-solid fa-folder-open" style="font-size: 18px; margin-right: 6px; color: var(--primary);"></i>
+          <div>
+            <div style="font-weight: 700;">Tüm Oyun Klasörünü Ekle / Tara</div>
+            <div style="font-size: 11.5px; color: var(--text-muted);">Örn: D:\SteamLibrary, D:\Oyunlar klasörü seçin.</div>
+          </div>
+        </button>
       </div>
 
-      <div class="checklist-container" id="checklist-items-container">
-        <!-- Rendered dynamically -->
+      <div class="modal-actions" style="margin-top: 20px;">
+        <button class="btn btn-secondary" id="btn-cancel-missing-modal" type="button">Vazgeç</button>
       </div>
+    </div>
+  </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-        <span style="font-size: 12px; color: var(--text-muted);" id="checklist-selected-count">0 uygulama seçildi</span>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-secondary" id="btn-cancel-checklist" type="button">İptal</button>
-          <button class="btn btn-primary" id="btn-apply-checklist" type="button">Seçilenleri Kurala Ekle</button>
-        </div>
+  <!-- MODAL 4: CUSTOM DARK CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal-box modal-box-confirm">
+      <div class="confirm-icon-box" id="confirm-dialog-icon">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="confirm-dialog-title" id="confirm-dialog-title">Kuralı Sil</h3>
+      <p class="confirm-dialog-desc" id="confirm-dialog-message">Bu kuralı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.</p>
+      
+      <div class="confirm-dialog-actions">
+        <button class="btn btn-secondary" id="btn-confirm-cancel" type="button">Vazgeç</button>
+        <button class="btn btn-danger" id="btn-confirm-accept" type="button">
+          <i class="fa-solid fa-trash"></i> Evet, Sil
+        </button>
       </div>
     </div>
   </div>

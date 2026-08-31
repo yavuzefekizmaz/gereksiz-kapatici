@@ -1,0 +1,69 @@
+{
+  "settings": {
+    "autoStartOnBoot": false,
+    "startMinimized": true,
+    "activePreset": "medium",
+    "autoRestoreOnExit": true,
+    "notifyOnAction": true,
+    "pollingIntervalMs": 2000,
+    "keepExplorer": false,
+    "smartSweep": false
+  },
+  "protectedApps": [
+    "voldena.exe",
+    "code.exe",
+    "anydesk.exe",
+    "onedrive.exe"
+  ],
+  "rules": [
+    {
+      "id": "rule-valorant",
+      "name": "Valorant Modu",
+      "enabled": true,
+      "triggerProcess": "VALORANT-Win64-Shipping.exe",
+      "alias": "Valorant",
+      "closeTargets": [
+        "chrome.exe",
+        "msedge.exe",
+        "discord.exe",
+        "spotify.exe",
+        "epicgameslauncher.exe",
+        "steam.exe"
+      ],
+      "launchTargets": [],
+      "optimizationLevel": "medium",
+      "keepExplorer": false,
+      "smartSweep": false
+    },
+    {
+      "id": "rule-cs2",
+      "name": "CS2 / CS:GO Modu",
+      "enabled": true,
+      "triggerProcess": "cs2.exe",
+      "alias": "Counter-Strike 2",
+      "closeTargets": [
+        "chrome.exe",
+        "msedge.exe",
+        "discord.exe",
+        "spotify.exe",
+        "epicgameslauncher.exe"
+      ],
+      "launchTargets": [],
+      "optimizationLevel": "medium",
+      "keepExplorer": false,
+      "smartSweep": false
+    },
+    {
+      "id": "rule-vscode",
+      "name": "VS Code Çalışma Modu",
+      "enabled": true,
+      "triggerProcess": "code.exe",
+      "alias": "VS Code",
+      "closeTargets": [],
+      "launchTargets": [],
+      "optimizationLevel": "low",
+      "keepExplorer": true,
+      "smartSweep": false
+    }
+  ]
+}

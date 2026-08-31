@@ -33,14 +33,17 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Voldena Oyun Hizlandiricisi"
+      "shortcutName": "Voldena Oyun Hizlandiricisi",
+      "perMachine": true,
+      "executionLevel": "requireAdministrator"
     }
   }
 }
