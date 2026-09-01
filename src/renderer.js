@@ -226,21 +226,50 @@ document.addEventListener('DOMContentLoaded', async () => {
       const newStats = await api.getMemoryStats();
       updateMemoryUI(newStats);
       btn.innerHTML = '<i class="fa-solid fa-check"></i> RAM Temizlendi!';
-      const msg = res && res.message ? res.message : 'RAM çalışma kümesi (WorkingSet) başarıyla boşaltıldı.';
-      showToast(msg, 'fa-solid fa-broom');
+      
+      const freedFormatted = res && res.freedMb && res.freedMb > 0
+        ? (res.freedMb >= 1000 ? `<strong>${res.freedGb} GB</strong> (${res.freedMb} MB)` : `<strong>${res.freedMb} MB</strong>`)
+        : 'Önbellek ve Çalışma Kümesi';
+
+      await showAlertDialog(
+        `Arka plan süreçleri ve sistem bellek havuzu başarıyla boşaltıldı.<br><br>Toplam <strong>${freedFormatted}</strong> RAM anında serbest bırakılarak oyun performansına aktarıldı.`,
+        'RAM Başarıyla Temizlendi',
+        'success',
+        'fa-solid fa-broom'
+      );
     } catch (err) {
-      showToast('RAM temizliği sırasında hata oluştu: ' + err.message, 'fa-solid fa-triangle-exclamation');
+      await showAlertDialog('RAM temizliği sırasında bir hata oluştu: ' + err.message, 'Hata', 'danger');
     }
 
     setTimeout(() => {
       btn.innerHTML = originalText;
-    }, 2200);
+    }, 1000);
   });
 
   document.getElementById('btn-emergency-explorer')?.addEventListener('click', async () => {
     await api.startExplorer();
     showToast('Explorer.exe kabuğu yeniden başlatıldı.', 'fa-solid fa-window-restore');
   });
+
+  // Initial Status Check on App Load
+  try {
+    const initialStatus = await api.getStatus();
+    if (initialStatus && initialStatus.activeRule) {
+      const dot = document.getElementById('status-dot');
+      const statusLabel = document.getElementById('status-label');
+      const ruleNameVal = document.getElementById('val-active-rule-name');
+      const ruleSubVal = document.getElementById('val-active-rule-sub');
+      if (dot) dot.className = 'status-dot active-game';
+      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
+      if (ruleNameVal) {
+        ruleNameVal.textContent = initialStatus.activeRule.alias || initialStatus.activeRule.name;
+        ruleNameVal.style.color = 'var(--danger)';
+      }
+      if (ruleSubVal) {
+        ruleSubVal.textContent = `CPU Önceliği YÜKSEK • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
+      }
+    }
+  } catch (e) {}
 
   // Status Change Listener
   api.onStatusChange((data) => {

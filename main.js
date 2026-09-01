@@ -7,13 +7,26 @@ const ProcessMonitor = require('./lib/process-monitor');
 const AppScanner = require('./lib/app-scanner');
 const GameDetector = require('./lib/game-detector');
 
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('[Voldena Engine] Beklenmeyen hata (uncaughtException):', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Voldena Engine] İşlenmeyen promise hatası (unhandledRejection):', reason);
+});
+
 function isRunningAsAdmin() {
   if (process.platform !== 'win32') return true;
   try {
     execSync('fltmc', { stdio: 'ignore' });
     return true;
   } catch (e) {
-    return false;
+    try {
+      execSync('net session', { stdio: 'ignore' });
+      return true;
+    } catch (e2) {
+      return false;
+    }
   }
 }
 
@@ -25,28 +38,24 @@ function ensureAdminPrivileges() {
     return;
   }
 
+  // If in packaged app (.exe), manifest requireAdministrator handles elevation on launch
+  if (app.isPackaged) {
+    return;
+  }
+
   if (process.argv.includes('--elevated-attempted')) {
     console.warn('[Voldena Engine] Yönetici izni kullanıcı tarafından reddedildi, standart modda devam ediliyor.');
     return;
   }
 
-  console.log('[Voldena Engine] Uygulama açılışında tek seferlik Yönetici (UAC) izni isteniyor...');
+  console.log('[Voldena Engine] Geliştirme modunda Yönetici (UAC) izni isteniyor...');
   try {
-    const isPackaged = app.isPackaged;
     const exe = process.execPath;
-
-    if (isPackaged) {
-      const args = process.argv.slice(1).concat(['--elevated-attempted']);
-      const argStr = args.map(a => `\`"${a}\`"`).join(' ');
-      const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -Verb RunAs`;
-      execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
-    } else {
-      const cwd = process.cwd();
-      const args = ['.', ...process.argv.slice(2), '--elevated-attempted'];
-      const argStr = args.map(a => `\`"${a}\`"`).join(' ');
-      const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -WorkingDirectory "${cwd}" -Verb RunAs`;
-      execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
-    }
+    const cwd = process.cwd();
+    const args = ['.', ...process.argv.slice(2), '--elevated-attempted'];
+    const argStr = args.map(a => `\`"${a}\`"`).join(' ');
+    const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -WorkingDirectory "${cwd}" -Verb RunAs`;
+    execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
 
     app.quit();
     process.exit(0);
@@ -55,7 +64,21 @@ function ensureAdminPrivileges() {
   }
 }
 
-// Request admin elevation on startup
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+// Request admin elevation if in dev mode
 ensureAdminPrivileges();
 
 let mainWindow = null;
@@ -347,6 +370,15 @@ app.whenReady().then(() => {
     else mainWindow.maximize();
   });
   ipcMain.on('window-close', () => mainWindow.close());
+});
+
+app.on('window-all-closed', (event) => {
+  const settings = ruleStore ? ruleStore.getSettings() : { startMinimized: true };
+  if (settings.startMinimized && !app.isQuitting) {
+    if (event && event.preventDefault) event.preventDefault();
+  } else {
+    app.quit();
+  }
 });
 
 app.on('will-quit', () => {
