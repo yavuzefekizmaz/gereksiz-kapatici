@@ -18,12 +18,13 @@
   "author": "Voldena Development",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^31.0.0",
+    "electron": "31.0.0",
     "electron-builder": "^24.13.3"
   },
   "build": {
     "appId": "com.voldena.gamebooster",
     "productName": "Voldena Oyun Hizlandiricisi",
+    "electronVersion": "31.0.0",
     "publish": null,
     "directories": {
       "output": "dist"
@@ -42,8 +43,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Voldena Oyun Hizlandiricisi",
-      "perMachine": true,
-      "executionLevel": "requireAdministrator"
+      "perMachine": true
     }
   }
 }
