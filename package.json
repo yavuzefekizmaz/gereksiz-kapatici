@@ -34,7 +34,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
