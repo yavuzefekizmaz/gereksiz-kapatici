@@ -20,3 +20,7 @@ Made with ❤️ by [Efe Kızmaz](https://github.com/yavuzefekizmaz)
 ## Safety revision
 
 System-wide working-set trimming, CPU priority changes, service stopping, Explorer termination and Smart Sweep are disabled, including with legacy settings. Only explicitly selected supported desktop apps receive a normal close request. Apps that refuse to close remain running. Companion apps are checked before launch, and are skipped if already running. See DUZELTME_NOTLARI.md for validation limits and Windows setup.
+
+## v1.2.2
+
+Voldena exits completely, including its tray icon, after game-start actions finish by default. Automatic restore is off; restart Voldena for the next game session. Explicitly selected OneDrive, AnyDesk and Overwolf processes have a tray-app exit policy with bounded per-process fallback. NVIDIA interfaces receive normal window-close requests only; graphics drivers and NVIDIA Container remain protected. The app picker loads running processes immediately and independently of installed-app scanning. Voldena's own hardware graphics acceleration is disabled.

@@ -45,13 +45,13 @@ test('protected names without extension and mixed case are respected', async () 
 
 test('normal close uses encoded PowerShell, session/path/window checks and no force', async () => {
   const { optimizer, commands } = loadOptimizer(async () => ({
-    stdout: JSON.stringify([{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe' }])
+    stdout: JSON.stringify([{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe', closed: true }])
   }));
   const result = await optimizer.killProcesses([' CHROME ', 'chrome.exe']);
   assert.equal(commands.length, 1);
   const [exe, args, options] = commands[0];
   assert.equal(exe, 'powershell.exe');
-  assert.equal(options.timeout, 10000);
+  assert.equal(options.timeout, 15000);
   const script = Buffer.from(args.at(-1), 'base64').toString('utf16le');
   assert.match(script, /CloseMainWindow\(\)/);
   assert.match(script, /WaitForExit\(1500\)/);
@@ -70,7 +70,7 @@ test('absent, refused, timed-out and failed closes are never added to restore hi
     const result = await optimizer.killProcesses(['spotify.exe']);
     assert.equal(result.closedApps.length, 0);
     assert.equal(result.killed.length, 0);
-    assert.equal(result.failed[0], 'spotify.exe');
+    assert.equal(result.failed[0] || result.skipped[0], 'spotify.exe');
   }
 });
 
@@ -173,8 +173,96 @@ test('failed inspection does not start a duplicate companion', async () => {
 
 test('restoring an app the user already reopened does not launch it again', async () => {
   const { optimizer, commands } = loadOptimizer(undefined, {
-    getRunningProcesses: async () => [{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe' }]
+    getRunningProcesses: async () => [{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe', closed: true }]
   });
-  await optimizer.relaunchProcesses([{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe' }]);
+  await optimizer.relaunchProcesses([{ name: 'chrome.exe', path: 'C:\\Apps\\chrome.exe', closed: true }]);
   assert.equal(commands.length, 0);
+});
+
+test('selected tray apps get bounded PID-only fallback; NVIDIA driver components never do', async () => {
+  const { optimizer, commands } = loadOptimizer();
+  await optimizer.killProcesses(['AnyDesk.exe', 'OneDrive.exe', 'Overwolf.exe', 'nvcontainer.exe', 'nvidia overlay.exe', 'nvidia app.exe', 'nvcplui.exe']);
+  const scripts = commands.map(command => Buffer.from(command[1].at(-1), 'base64').toString('utf16le'));
+  assert.equal(scripts.length, 8); // Three Overwolf helpers belong to the selected app.
+  for (const script of scripts) {
+    assert.doesNotMatch(script, /taskkill|Stop-Service|Stop-Process|\/T\b/);
+    if (script.includes("-Name 'nvidia app'") || script.includes("-Name 'nvcplui'")) {
+      assert.doesNotMatch(script, /\.Kill\(/);
+      assert.match(script, /CloseMainWindow/);
+    } else {
+      assert.match(script, /\$current\.Kill\(\)/);
+      assert.match(script, /StartTime\.ToUniversalTime\(\)\.Ticks -eq \$startedAt/);
+      assert.match(script, /\$current\.Path -ieq \$exePath/);
+      assert.match(script, /\$current\.SessionId -ne 0/);
+    }
+  }
+  const oneDrive = scripts.find(script => script.includes("-Name 'onedrive'"));
+  assert.match(oneDrive, /ArgumentList '\/shutdown'/);
+  assert.match(oneDrive, /shutdownPaths\.ContainsKey/);
+});
+
+test('tray termination can be disabled and protected helpers remain untouched', async () => {
+  const { optimizer, commands } = loadOptimizer();
+  await optimizer.killProcesses(['overwolf.exe'], ['overwolfbrowser.exe'], { forceTrayApps: false });
+  assert.equal(commands.length, 3);
+  for (const command of commands) {
+    const script = Buffer.from(command[1].at(-1), 'base64').toString('utf16le');
+    assert.doesNotMatch(script, /\.Kill\(/);
+    assert.doesNotMatch(script, /-Name 'overwolfbrowser'/);
+  }
+});
+
+test('partially closed multiple instances are reported as partial, not complete', async () => {
+  const { optimizer } = loadOptimizer(async () => ({ stdout: JSON.stringify([
+    { name: 'onedrive.exe', path: 'C:\\Apps\\OneDrive.exe', closed: true },
+    { name: 'onedrive.exe', path: 'C:\\Other\\OneDrive.exe', closed: false }
+  ]) }));
+  const result = await optimizer.killProcesses(['onedrive.exe']);
+  assert.equal(result.details[0].outcome, 'partial');
+  assert.equal(result.details[0].remainingInstances, 1);
+  assert.equal(result.failed[0], 'onedrive.exe');
+});
+
+test('Voldena completion waits for all closing attempts and stops monitoring', async () => {
+  const original = RamOptimizer.killProcesses;
+  let resolve;
+  const events = [];
+  try {
+    RamOptimizer.killProcesses = () => new Promise(done => { resolve = done; });
+    const monitor = new ProcessMonitor({}, null, () => events.push('status'), report => {
+      assert.equal(report.failed[0], 'anydesk.exe');
+      events.push('quit');
+    });
+    monitor.stop = () => events.push('stop');
+    const pending = monitor.handleRuleTrigger({ id: 'game', triggerProcess: 'cs2.exe',
+      optimizationLevel: 'medium', closeTargets: ['anydesk.exe'] }, { exitAfterOptimization: true }, []);
+    assert.deepEqual(events, []);
+    resolve({ killed: [], failed: ['anydesk.exe'], closedApps: [], skipped: [], details: [] });
+    await pending;
+    assert.deepEqual(events, ['status', 'stop', 'quit']);
+  } finally { RamOptimizer.killProcesses = original; }
+});
+
+test('keeping Voldena open is still an explicit option', async () => {
+  const monitor = new ProcessMonitor({}, null, null, () => { throw new Error('Unexpected exit'); });
+  await monitor.handleRuleTrigger({ id: 'game', triggerProcess: 'cs2.exe', closeTargets: [] },
+    { exitAfterOptimization: false }, []);
+  assert.equal(monitor.activeRuleId, 'game');
+});
+
+test('Windows PowerShell parses generated close scripts without running any closing code',
+  { skip: process.platform !== 'win32' }, async () => {
+  const { optimizer, commands } = loadOptimizer();
+  await optimizer.killProcesses(['chrome.exe', 'onedrive.exe', 'anydesk.exe', 'overwolf.exe', 'nvidia app.exe', 'nvcplui.exe']);
+  for (const command of commands) {
+    const encoded = command[1].at(-1);
+    const parser = `
+$source = [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('${encoded}'));
+$tokens = $null; $errors = $null;
+[System.Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$errors) | Out-Null;
+if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Output $_.Message }; exit 1 }
+`;
+    childProcess.execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand',
+      Buffer.from(parser, 'utf16le').toString('base64')], { timeout: 10000, windowsHide: true });
+  }
 });

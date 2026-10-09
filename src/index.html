@@ -173,6 +173,25 @@
           </button>
         </div>
 
+        <div class="glass-card settings-banner-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-title">İşlemler Tamamlanınca Voldena'yı Tamamen Kapat</div>
+              <div class="setting-desc">Oyun algılanınca seçili uygulamalar kapatılır, eşlikçi uygulamalar açılır ve Voldena tepsi dahil çıkar. Oyun bitince uygulamalar geri açılmaz. Sonraki oyun için Voldena'yı yeniden başlatın.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="setting-exit-after-optimization" checked><span class="slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-title">Seçili Tepsi Uygulamalarını Tamamen Kapat</div>
+              <div class="setting-desc">Seçili OneDrive, AnyDesk ve Overwolf normal çıkıştan sonra açık kalırsa yalnızca o kullanıcı uygulaması sonlandırılır. NVIDIA arayüzlerinde normal pencere kapatma uygulanır; sürücüler ve servisler korunur.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="setting-force-tray-apps" checked><span class="slider"></span></label>
+          </div>
+        </div>
+
+        <p id="last-optimization-summary" class="text-muted" style="margin: 12px 0;">Son işlem raporu yükleniyor...</p>
+
         <!-- Global Engine Settings Card -->
         <div class="glass-card settings-banner-card">
           <div class="setting-row">
@@ -181,7 +200,7 @@
               <div class="setting-desc">Oyun bittiğinde Chrome, Discord, Spotify gibi kapatılan uygulamalar otomatik yeniden başlatılır.</div>
             </div>
             <label class="switch">
-              <input type="checkbox" id="setting-auto-restore" checked>
+              <input type="checkbox" id="setting-auto-restore">
               <span class="slider"></span>
             </label>
           </div>
@@ -725,6 +744,7 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
+  <script src="app-picker-data.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

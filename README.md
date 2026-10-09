@@ -28,3 +28,9 @@ Kaynak kod mevcut kurulu EXE’yi kendiliğinden güncellemez. Setup ve portable
 v1.2.1 setup sürümü GitHub üzerinden yeni sürüm kontrolü yapar. Ayarlar → Uygulama Güncellemeleri bölümünden indirip kurabilirsiniz. Kurulu v1.2.0 sürümünün güncelleme ekranından yeni yayın denetlenebilir. Yayımlanmış v1.0.0 EXE’sinde güncelleyici bulunmadığından yalnızca o sürümden geçişte setup elle çalıştırılmalıdır. Portable sürümün güncellemesi yeni EXE indirilerek yapılır.
 
 `v` ile başlayan ve package.json sürümüyle eşleşen bir etiket gönderildiğinde GitHub Actions Windows x64 setup, portable, güncelleme metadatası ve kaynak ZIP’i oluşturur; testler ve paket kontrolleri başarılıysa sürümü yayımlar.
+
+## v1.2.2 oyun sonrası çıkış ve tepsi uygulamaları
+
+Varsayılan davranış: oyun algılanır → seçili uygulamalara kapatma uygulanır → eşlikçi uygulamalar başlatılmış olur → Voldena tepsi dahil tamamen çıkar. Programlar oyun bitince geri açılmaz. Sonraki oyun oturumunda Voldena'yı yeniden başlatın. Ayarlardan otomatik çıkışı kapatabilirsiniz.
+
+Seçili OneDrive, AnyDesk ve Overwolf için tepsi uygulamasını sonlandırma desteği eklendi; NVIDIA App / Denetim Masası yalnızca normal pencere kapatma ile ele alınır. Grafik sürücüsü ve NVIDIA Container korunur. Uygulama seçici çalışan programları otomatik yükler. Kaynak kullanımı seçili programların ve Voldena'nın kapanmasıyla azaltılır; donanım saat hızları değiştirilmez.

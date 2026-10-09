@@ -3,7 +3,7 @@
     "autoStartOnBoot": false,
     "startMinimized": true,
     "activePreset": "medium",
-    "autoRestoreOnExit": true,
+    "autoRestoreOnExit": false,
     "notifyOnAction": true,
     "pollingIntervalMs": 2000,
     "keepExplorer": true,
@@ -14,7 +14,9 @@
       "msedge.exe",
       "discord.exe",
       "spotify.exe"
-    ]
+    ],
+    "exitAfterOptimization": true,
+    "forceCloseSelectedTrayApps": true
   },
   "protectedApps": [
     "voldena.exe",
@@ -24,9 +26,7 @@
     "epicgameslauncher.exe",
     "eadesktop.exe",
     "battle.net.exe",
-    "code.exe",
-    "anydesk.exe",
-    "onedrive.exe"
+    "code.exe"
   ],
   "customGamePaths": [],
   "verifiedGames": [],

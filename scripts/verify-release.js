@@ -21,7 +21,7 @@ const archive = path.join(dist, 'win-unpacked/resources/app.asar');
 const packedPackage = JSON.parse(asar.extractFile(archive, 'package.json').toString());
 assert.equal(packedPackage.version, pkg.version);
 assert.ok(packedPackage.dependencies['electron-updater']);
-for (const filename of ['main.js', 'preload.js', 'lib/ram-optimizer.js', 'lib/process-monitor.js', 'lib/update-manager.js', 'src/renderer.js', 'src/index.html']) {
+for (const filename of ['main.js', 'preload.js', 'lib/ram-optimizer.js', 'lib/process-monitor.js', 'lib/update-manager.js', 'lib/app-lifecycle.js', 'src/app-picker-data.js', 'src/renderer.js', 'src/index.html']) {
   assert.deepEqual(asar.extractFile(archive, filename), fs.readFileSync(path.join(root, filename)), `Packed file differs: ${filename}`);
 }
 const updateConfig = yaml.load(fs.readFileSync(path.join(dist, 'win-unpacked/resources/app-update.yml'), 'utf8'));

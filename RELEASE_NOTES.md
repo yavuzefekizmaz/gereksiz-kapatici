@@ -1,22 +1,20 @@
-## Voldena v1.2.1
+## Voldena v1.2.2
 
-- Oyun açılışında riskli Smart Sweep, sistem genelinde RAM boşaltma, CPU önceliği değiştirme, Windows servisi durdurma ve Explorer kapatma kaldırıldı. Eski ayarlar bu işlemleri yeniden etkinleştiremez.
-- Yalnızca seçili ve desteklenen masaüstü uygulamalarına normal kapatma isteği gönderilir. Zorla sonlandırma ve alt işlem ağacını kapatma yoktur.
-- Oyunla birlikte açılacak program zaten çalışıyorsa tekrar başlatılmaz. Geri açma sırasında da aynı kontrol uygulanır.
-- Setup sürümüne GitHub üzerinden güncelleme kontrolü, indirme ve uygulama içinden kurulum eklendi: Ayarlar → Uygulama Güncellemeleri.
-- 17 otomatik test başarılı. Windows'ta kullanıcı tarafından bildirilen görüntü/giriş sorununun giderildiği henüz doğrulanmamıştır.
+- Oyun açılışındaki uygulama kapatma ve eşlikçi uygulama başlatma işlemleri tamamlanınca Voldena tepsi dahil tamamen çıkar. Bu seçenek varsayılan olarak açıktır; oyun sonrası otomatik geri açma kapalıdır. Sonraki oyun oturumu için Voldena yeniden başlatılır.
+- Seçili OneDrive örneklerine `/shutdown` gönderilir. Kişisel ve okul hesaplarının aynı oturumdaki örnekleri birlikte ele alınır.
+- Seçili OneDrive, AnyDesk ve Overwolf normal çıkıştan sonra açık kalırsa yalnızca doğrulanan kullanıcı işlemi sonlandırılabilir. Overwolf'un bilinen yardımcı uygulamaları da kapsanır; işlem ağacı sonlandırılmaz.
+- Önceki koruma listesinde kapatılmak üzere seçilmiş OneDrive / AnyDesk için çakışan varsayılan koruma kaldırılır. Diğer korumalar korunur.
+- NVIDIA App ve NVIDIA Denetim Masası pencerelerine normal kapatma isteği gönderilir. NVIDIA Container, grafik sürücüsü, NVIDIA Overlay, Windows servisleri, Explorer ve oyun başlatıcıları sonlandırılmaz. NVIDIA'nın sürücüye ait tepsi simgesi kalabilir; bu simgenin kaybolması için sürücü servisi durdurulmaz.
+- Arka plandaki PowerShell/tasklist komutları konsol penceresi açmayacak şekilde çalıştırılır. Voldena'nın kendi donanım grafik hızlandırması kapatıldı. Otomatik çıkışta açılır bildirim gösterilmez. Sistem çözünürlüğü, ekran tazeleme hızı, GPU sürücüsü, işlemci saat hızı ve sistem genelindeki RAM çalışma kümeleri değiştirilmez.
+- Uygulama seçici açılır açılmaz çalışan uygulamaları yükler. Bu yükleme, yüklü program taramasından bağımsızdır; tarama yavaşlasa veya hata verse bile çalışan liste görüntülenir. Çalışan sekmesine geçildiğinde de liste otomatik yenilenir.
+- Son işlemin kapanan, kapatılamayan ve atlanan uygulamaları yeniden açıldığında arayüzde görülebilir.
 
-### İndirme
+31 otomatik test Windows yayın iş akışında çalıştırılır; 30 test yerel ortamda başarılı, PowerShell sözdizimi testi Windows üzerinde çalışır. Windows derlemesindeki paket ve kaynak eşleşmesi ayrıca doğrulanır. Kullanıcının bilgisayarındaki kısa siyah ekranın giderildiği ve tüm uygulamaların gerçekten kapandığı bu ortamda doğrulanamaz. Belirli bir FPS artışı veya anti-cheat sonucu garanti edilmez.
 
-- **Setup:** `Voldena.Oyun.Hizlandiricisi.Setup.1.2.1.exe`
-- **Portable:** `Voldena.Oyun.Hizlandiricisi.1.2.1.exe`
-- **Kaynak kod:** `Voldena.Source.1.2.1.zip` ve bu etiketin GitHub kaynak arşivleri.
-- `latest.yml` ve `.blockmap` setup sürümünün sonraki güncellemeleri için yayımlanır.
+### İndirme / güncelleme
 
-### v1.2.0'dan güncelleme
+- **Setup:** `Voldena.Oyun.Hizlandiricisi.Setup.1.2.2.exe`
+- **Portable:** `Voldena.Oyun.Hizlandiricisi.1.2.2.exe`
+- **Kaynak:** `Voldena.Source.1.2.2.zip`
 
-Kurulu v1.2.0 sürümünde **GitHub'dan Güncellemeleri Denetle** düğmesini kullanın. Bu yayın v1.2.0'dan daha yeni olan v1.2.1 olarak yayımlanır. Setup dosyası GitHub Releases altında sunulur; uygulama ayarları aynı uygulama kimliği ve kullanıcı veri konumunda korunur.
-
-Yayımlanmış v1.0.0 EXE'sinde güncelleyici bulunmadığı için yalnızca o eski sürümden geçişte setup bir kez elle çalıştırılmalıdır. Portable sürüm yeni portable EXE indirilerek güncellenir.
-
-Paketler Windows x64 içindir. Kod imzalama sertifikası sağlanmadığından imzasızdır. Mevcut uygulama ayarları aynı uygulama kimliği ve kullanıcı veri konumu altında korunur.
+v1.2.1 setup sürümünde Ayarlar → Uygulama Güncellemeleri bölümünden kontrol edip indirin; oyunu kapattıktan sonra kurulumu başlatın. Portable sürüm yeni EXE indirilerek güncellenir. Mevcut oyun profilleri korunur. EXE'ler Windows x64 içindir ve imzasızdır.

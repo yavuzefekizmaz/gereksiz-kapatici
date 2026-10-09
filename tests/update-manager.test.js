@@ -4,11 +4,11 @@ const { EventEmitter } = require('node:events');
 const UpdateManager = require('../lib/update-manager');
 
 function fixture({ supported = true, canInstall = true } = {}) {
-  const app = { getVersion: () => '1.2.1', isQuitting: false };
+  const app = { getVersion: () => '1.2.2', isQuitting: false };
   const updater = new EventEmitter();
   const calls = { check: 0, download: 0, install: 0 };
-  updater.checkForUpdates = async () => { calls.check++; updater.emit('update-available', { version: '1.2.2' }); };
-  updater.downloadUpdate = async () => { calls.download++; updater.emit('update-downloaded', { version: '1.2.2' }); };
+  updater.checkForUpdates = async () => { calls.check++; updater.emit('update-available', { version: '1.2.3' }); };
+  updater.downloadUpdate = async () => { calls.download++; updater.emit('update-downloaded', { version: '1.2.3' }); };
   updater.quitAndInstall = (silent, restart) => { assert.equal(silent, false); assert.equal(restart, true); calls.install++; };
   const manager = new UpdateManager({ app, updater, supported, beforeInstall: () => canInstall });
   return { app, updater, calls, manager };

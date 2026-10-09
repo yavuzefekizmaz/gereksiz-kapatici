@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('voldenaAPI', {
   getRunningProcesses: () => ipcRenderer.invoke('get-running-processes'),
   resolveExePath: (nameOrExe) => ipcRenderer.invoke('resolve-exe-path', nameOrExe),
   
+  getLastOptimizationReport: () => ipcRenderer.invoke('get-last-optimization-report'),
+
   // Status & Dialogs
   getStatus: () => ipcRenderer.invoke('get-status'),
   isAdmin: () => ipcRenderer.invoke('is-admin'),

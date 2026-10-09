@@ -1,5 +1,10 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { finishGameSession } = require('./lib/app-lifecycle');
+
+// Keep Voldena itself off the hardware graphics path during game startup.
+app.disableHardwareAcceleration();
 const { execSync } = require('child_process');
 const RuleStore = require('./lib/rule-store');
 const RamOptimizer = require('./lib/ram-optimizer');
@@ -19,11 +24,11 @@ process.on('unhandledRejection', (reason) => {
 function isRunningAsAdmin() {
   if (process.platform !== 'win32') return true;
   try {
-    execSync('fltmc', { stdio: 'ignore' });
+    execSync('fltmc', { stdio: 'ignore', windowsHide: true, timeout: 5000 });
     return true;
   } catch (e) {
     try {
-      execSync('net session', { stdio: 'ignore' });
+      execSync('net session', { stdio: 'ignore', windowsHide: true, timeout: 5000 });
       return true;
     } catch (e2) {
       return false;
@@ -137,7 +142,6 @@ function createTray() {
         label: 'Çıkış Yap',
         click: () => {
           app.isQuitting = true;
-          RamOptimizer.startExplorer();
           app.quit();
         }
       }
@@ -169,6 +173,7 @@ app.whenReady().then(() => {
   }).catch(e => console.error('Oyun kütüphaneleri tarama hatası:', e));
 
   processMonitor = new ProcessMonitor(ruleStore, gameDetector, (state) => {
+    if (ruleStore.getSettings().exitAfterOptimization !== false && state.status === 'active') return;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('status-changed', state);
     }
@@ -190,7 +195,16 @@ app.whenReady().then(() => {
         }).show();
       }
     }
-  });
+  }, report => finishGameSession({
+    app, monitor: processMonitor, tray,
+    clearTimers: () => {
+      if (memoryInterval) clearInterval(memoryInterval);
+      if (updateCheckTimer) clearTimeout(updateCheckTimer);
+      globalShortcut.unregisterAll();
+    },
+    saveReport: result => fs.writeFileSync(path.join(app.getPath('userData'), 'last-optimization.json'),
+      JSON.stringify({ completedAt: new Date().toISOString(), version: app.getVersion(), ...result }, null, 2))
+  }, report));
 
   const updateTrayMenu = createTray();
 
@@ -274,6 +288,11 @@ app.whenReady().then(() => {
   ipcMain.handle('save-verified-games', (_, games) => ruleStore.updateVerifiedGames(games));
 
   // Memory & Optimizer Handlers
+  ipcMain.handle('get-last-optimization-report', () => {
+    try { return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'last-optimization.json'), 'utf8')); }
+    catch (_) { return null; }
+  });
+
   ipcMain.handle('get-update-status', () => updateManager.state);
   ipcMain.handle('check-for-updates', () => updateManager.check());
   ipcMain.handle('download-update', () => updateManager.download());
@@ -296,7 +315,7 @@ app.whenReady().then(() => {
   ipcMain.handle('get-all-apps', () => AppScanner.getAllAppsDataset());
   ipcMain.handle('get-popular-apps', () => AppScanner.getPopularApps());
   ipcMain.handle('get-installed-apps', (_, forceRefresh) => AppScanner.getInstalledApps(forceRefresh));
-  ipcMain.handle('get-running-apps', () => AppScanner.getRunningProcesses());
+  ipcMain.handle('get-running-apps', () => AppScanner.getRunningProcesses({ throwOnError: true }));
   ipcMain.handle('resolve-exe-path', (_, nameOrExe) => AppScanner.resolveExecutablePath(nameOrExe));
   
   // File & Folder Dialogs

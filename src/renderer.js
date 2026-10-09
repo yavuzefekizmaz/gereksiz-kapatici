@@ -16,6 +16,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-release-page').addEventListener('click', () => api.openReleasePage());
   try { renderUpdateStatus(await api.getUpdateStatus()); } catch (err) { console.error(err); }
 
+  try {
+    const report = await api.getLastOptimizationReport();
+    const summary = document.getElementById('last-optimization-summary');
+    if (report) {
+      const closed = (report.killed || []).join(', ') || 'yok';
+      const failed = (report.failed || []).join(', ') || 'yok';
+      const skipped = (report.skipped || []).filter(Boolean).join(', ') || 'yok';
+      summary.textContent = `Son işlem — Kapanan: ${closed}. Kapatılamayan: ${failed}. Atlanan: ${skipped}.`;
+    } else summary.textContent = 'Henüz tamamlanmış bir oyun işlemi yok.';
+  } catch (err) { console.error(err); }
+
   // Global State
   let closeTargetsState = [];
   let launchTargetsState = [];
@@ -589,23 +600,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pickerTitle = document.getElementById('picker-modal-title');
 
   // Load Apps Dataset
-  const loadAppsData = async (forceRefresh = false) => {
-    try {
-      if (forceRefresh || cachedPopularApps.length === 0) {
-        cachedPopularApps = await api.getPopularApps();
+  const loadAppsData = async (forceRefresh = false, runningOnly = false) => {
+    const runningList = document.getElementById('list-running-apps');
+    runningList.innerHTML = '<div style="padding:20px;text-align:center;">Çalışan uygulamalar yükleniyor...</div>';
+    const filter = () => inputPickerSearch.value.toLowerCase().trim();
+    await window.voldenaPickerData.refreshPickerData(api, {
+      running: data => {
+        cachedRunningApps = data;
+        document.getElementById('count-running').textContent = data.length;
+        renderRunningPane(filter());
+      },
+      popular: data => { cachedPopularApps = data; renderPopularPane(filter()); },
+      installed: data => {
+        cachedInstalledApps = data;
+        document.getElementById('count-installed').textContent = data.length;
+        renderInstalledPane(filter());
+      },
+      error: (kind, error) => {
+        console.error(`Uygulama listesi alınamadı (${kind}):`, error);
+        if (kind === 'running') {
+          cachedRunningApps = [];
+          runningList.innerHTML = '<div style="padding:20px;text-align:center;">Çalışan uygulamalar alınamadı. Yenile ile tekrar deneyebilirsiniz.</div>';
+        }
       }
-      if (forceRefresh || cachedInstalledApps.length === 0) {
-        cachedInstalledApps = await api.getInstalledApps(forceRefresh);
-      }
-      cachedRunningApps = await api.getRunningApps();
-
-      const countInst = document.getElementById('count-installed');
-      const countRun = document.getElementById('count-running');
-      if (countInst) countInst.textContent = cachedInstalledApps.length;
-      if (countRun) countRun.textContent = cachedRunningApps.length;
-    } catch (e) {
-      console.error('Uygulama listesi alınamadı:', e);
-    }
+    }, {
+      loadPopular: !runningOnly && (forceRefresh || cachedPopularApps.length === 0),
+      loadInstalled: !runningOnly && (forceRefresh || cachedInstalledApps.length === 0),
+      forceRefresh
+    });
+    if (pickerSelectedCountLabel) pickerSelectedCountLabel.textContent = `${selectedInPicker.size} uygulama seçildi`;
   };
 
   // Render Popular Apps Pane
@@ -741,7 +764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (isCritical) {
         dangerClass = 'danger-critical';
         iconClass = 'fa-solid fa-ban';
-        dangerBadge = `<span class="danger-badge-critical" title="Bu süreç Windows için hayati önem taşır. Kapatılamaz, kapatılırsa bilgisayar çöker/yeniden başlar."><i class="fa-solid fa-ban"></i> Kritik Sistem (Kapatılamaz - PC Çöker)</span>`;
+        dangerBadge = `<span class="danger-badge-critical" title="Bu işlem güvenli kapatma kapsamında desteklenmiyor."><i class="fa-solid fa-ban"></i> Kapatma Desteklenmiyor</span>`;
       } else if (isWarning) {
         dangerClass = 'danger-warning';
         iconClass = 'fa-solid fa-triangle-exclamation';
@@ -775,7 +798,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       item.addEventListener('click', (e) => {
         if (isSelectionDisabled) {
-          showToast(`${p.name} kritik bir sistem sürecidir. Bilgisayarınızın çökmesini engellemek için kapatılamaz!`, 'fa-solid fa-ban');
+          showToast(`${p.name} kapatılmasına izin verilen uygulamalar arasında değil.`, 'fa-solid fa-ban');
           return;
         }
 
@@ -835,8 +858,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     inputPickerSearch.value = '';
     if (btnClearPickerSearch) btnClearPickerSearch.style.display = 'none';
 
+    renderPopularPane('');
+    renderInstalledPane('');
     await loadAppsData();
-    renderAllPickerPanes('');
   };
 
   const closeAppPicker = () => {
@@ -861,6 +885,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.classList.add('active');
       const targetPane = document.getElementById(`pane-${tab}`);
       if (targetPane) targetPane.classList.add('active');
+      if (tab === 'running') loadAppsData(false, true);
     });
   });
 
@@ -884,7 +909,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById('btn-refresh-apps');
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     await loadAppsData(true);
-    renderAllPickerPanes(inputPickerSearch.value.toLowerCase().trim());
     btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Yenile';
     showToast('Uygulama ve süreç listesi güncellendi.');
   });
@@ -1321,6 +1345,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const chkMinimized = document.getElementById('setting-minimized');
   const chkNotifications = document.getElementById('setting-notifications');
   const chkAutoRestore = document.getElementById('setting-auto-restore');
+  const chkExitAfterOptimization = document.getElementById('setting-exit-after-optimization');
+  const chkForceTrayApps = document.getElementById('setting-force-tray-apps');
   const chkSmartSweep = document.getElementById('setting-smart-sweep');
   const chkAutoGameDetection = document.getElementById('setting-auto-game-detection');
   const chkAutoGameDetectionSettings = document.getElementById('setting-auto-game-detection-settings');
@@ -1329,7 +1355,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (chkAutostart) chkAutostart.checked = !!settings.autoStartOnBoot;
   if (chkMinimized) chkMinimized.checked = !!settings.startMinimized;
   if (chkNotifications) chkNotifications.checked = !!settings.notifyOnAction;
-  if (chkAutoRestore) chkAutoRestore.checked = settings.autoRestoreOnExit !== false;
+  if (chkAutoRestore) {
+    chkAutoRestore.checked = settings.exitAfterOptimization === false && settings.autoRestoreOnExit === true;
+    chkAutoRestore.disabled = settings.exitAfterOptimization !== false;
+  }
+  if (chkExitAfterOptimization) chkExitAfterOptimization.checked = settings.exitAfterOptimization !== false;
+  if (chkForceTrayApps) chkForceTrayApps.checked = settings.forceCloseSelectedTrayApps !== false;
+  chkExitAfterOptimization?.addEventListener('change', async e => {
+    await api.updateSettings({ exitAfterOptimization: e.target.checked, autoRestoreOnExit: false });
+    if (chkAutoRestore) { chkAutoRestore.checked = false; chkAutoRestore.disabled = e.target.checked; }
+    showToast(e.target.checked ? 'İşlemler bitince Voldena tamamen kapanacak.' : 'Voldena oyun sırasında açık kalacak.');
+  });
+  chkForceTrayApps?.addEventListener('change', e => api.updateSettings({ forceCloseSelectedTrayApps: e.target.checked }));
   if (chkSmartSweep) { chkSmartSweep.checked = false; chkSmartSweep.disabled = true; }
   if (chkAutoGameDetection) chkAutoGameDetection.checked = settings.autoGameDetection !== false;
   if (chkAutoGameDetectionSettings) chkAutoGameDetectionSettings.checked = settings.autoGameDetection !== false;
