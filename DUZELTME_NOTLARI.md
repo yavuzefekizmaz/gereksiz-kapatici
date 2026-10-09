@@ -28,7 +28,7 @@ Kaynak ZIP’i hazır bir EXE değildir. Windows setup ve portable dosyaları Gi
 2. ZIP'i ayrı bir klasöre çıkarın. Node.js kuruluysa proje klasöründe terminal açın.
 3. `npm install` çalıştırın.
 4. `npm start` çalıştırın. Yönetici olarak çalıştırmanız gerekmez.
-5. Windows'ta kurulum dosyası üretmek için `npm run dist` kullanılabilir. Windows paketleri GitHub Actions ile oluşturulur.
+5. Windows'ta kurulum dosyası üretmek için `npm run dist` kullanılabilir. Windows x64 paketleri electron-builder ile oluşturulur. GitHub Actions üzerinde aynı sürümleri derleyip yayımlayacak iş akışı da eklendi.
 
 ## Doğrulama
 
