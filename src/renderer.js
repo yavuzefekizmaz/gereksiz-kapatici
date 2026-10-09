@@ -2,6 +2,20 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const api = window.voldenaAPI;
 
+  const renderUpdateStatus = state => {
+    document.getElementById('update-version').textContent = `Mevcut sürüm: ${state.currentVersion}`;
+    document.getElementById('update-message').textContent = state.message;
+    document.getElementById('btn-check-update').disabled = ['unsupported', 'checking', 'downloading', 'downloaded'].includes(state.status);
+    document.getElementById('btn-download-update').hidden = state.status !== 'available';
+    document.getElementById('btn-install-update').hidden = state.status !== 'downloaded';
+  };
+  api.onUpdateStatus(renderUpdateStatus);
+  document.getElementById('btn-check-update').addEventListener('click', async () => renderUpdateStatus(await api.checkForUpdates()));
+  document.getElementById('btn-download-update').addEventListener('click', async () => renderUpdateStatus(await api.downloadUpdate()));
+  document.getElementById('btn-install-update').addEventListener('click', async () => renderUpdateStatus(await api.installUpdate()));
+  document.getElementById('btn-release-page').addEventListener('click', () => api.openReleasePage());
+  try { renderUpdateStatus(await api.getUpdateStatus()); } catch (err) { console.error(err); }
+
   // Global State
   let closeTargetsState = [];
   let launchTargetsState = [];
@@ -223,20 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     try {
       const res = await api.optimizeRam('low');
-      const newStats = await api.getMemoryStats();
-      updateMemoryUI(newStats);
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> RAM Temizlendi!';
-      
-      const freedFormatted = res && res.freedMb && res.freedMb > 0
-        ? (res.freedMb >= 1000 ? `<strong>${res.freedGb} GB</strong> (${res.freedMb} MB)` : `<strong>${res.freedMb} MB</strong>`)
-        : 'Önbellek ve Çalışma Kümesi';
-
-      await showAlertDialog(
-        `Arka plan süreçleri ve sistem bellek havuzu başarıyla boşaltıldı.<br><br>Toplam <strong>${freedFormatted}</strong> RAM anında serbest bırakılarak oyun performansına aktarıldı.`,
-        'RAM Başarıyla Temizlendi',
-        'success',
-        'fa-solid fa-broom'
-      );
+      await showAlertDialog(res.message, 'RAM Yönetimi', 'info', 'fa-solid fa-shield-halved');
     } catch (err) {
       await showAlertDialog('RAM temizliği sırasında bir hata oluştu: ' + err.message, 'Hata', 'danger');
     }
@@ -260,13 +261,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ruleNameVal = document.getElementById('val-active-rule-name');
       const ruleSubVal = document.getElementById('val-active-rule-sub');
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Oyun Modu: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = initialStatus.activeRule.alias || initialStatus.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `CPU Önceliği YÜKSEK • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
+        ruleSubVal.textContent = `Normal Kapatma • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
       }
     }
   } catch (e) {}
@@ -280,13 +281,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.status === 'active') {
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${data.activeRule.alias || data.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Oyun Modu: ${data.activeRule.alias || data.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = data.activeRule.alias || data.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `CPU Önceliği YÜKSEK • Kapatılan: ${data.closedApps ? data.closedApps.length : 0} uygulama ${data.isAutoDetected ? '(Otomatik Oyun Algılama)' : ''}`;
+        ruleSubVal.textContent = `Normal Kapatma • Kapatılan: ${data.closedApps ? data.closedApps.length : 0} uygulama ${data.isAutoDetected ? '(Otomatik Oyun Algılama)' : ''}`;
       }
     } else {
       if (dot) dot.className = 'status-dot';
@@ -980,7 +981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('rule-form-name').value = ruleToEdit.name || '';
       document.getElementById('rule-form-trigger').value = ruleToEdit.triggerProcess || '';
       document.getElementById('rule-form-level').value = ruleToEdit.optimizationLevel || 'medium';
-      if (chkKeepExplorer) chkKeepExplorer.checked = ruleToEdit.keepExplorer !== false;
+      if (chkKeepExplorer) chkKeepExplorer.checked = true;
 
       closeTargetsState = [...(ruleToEdit.closeTargets || [])];
       launchTargetsState = [...(ruleToEdit.launchTargets || [])];
@@ -1092,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     rules.forEach(rule => {
       const levelBadge = rule.optimizationLevel === 'high'
-        ? `<span class="badge badge-high">Ultra FPS ${rule.keepExplorer ? '(Explorer Açık)' : ''}</span>`
+        ? `<span class="badge badge-high">Güvenli Kapatma</span>`
         : rule.optimizationLevel === 'medium'
         ? '<span class="badge badge-medium">Orta Mod</span>'
         : '<span class="badge badge-low">Düşük Mod</span>';
@@ -1201,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const badgeVal = document.getElementById('val-active-preset-badge');
     if (badgeVal) {
       if (selectedLevel === 'high') {
-        badgeVal.innerHTML = '<span class="badge badge-high">Ultra FPS Modu</span>';
+        badgeVal.innerHTML = '<span class="badge badge-high">Güvenli Kapatma</span>';
       } else if (selectedLevel === 'low') {
         badgeVal.innerHTML = '<span class="badge badge-low">Düşük Mod</span>';
       } else {
@@ -1329,10 +1330,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (chkMinimized) chkMinimized.checked = !!settings.startMinimized;
   if (chkNotifications) chkNotifications.checked = !!settings.notifyOnAction;
   if (chkAutoRestore) chkAutoRestore.checked = settings.autoRestoreOnExit !== false;
-  if (chkSmartSweep) chkSmartSweep.checked = !!settings.smartSweep;
+  if (chkSmartSweep) { chkSmartSweep.checked = false; chkSmartSweep.disabled = true; }
   if (chkAutoGameDetection) chkAutoGameDetection.checked = settings.autoGameDetection !== false;
   if (chkAutoGameDetectionSettings) chkAutoGameDetectionSettings.checked = settings.autoGameDetection !== false;
-  if (chkKeepExplorerSettings) chkKeepExplorerSettings.checked = settings.keepExplorer !== false;
+  if (chkKeepExplorerSettings) { chkKeepExplorerSettings.checked = true; chkKeepExplorerSettings.disabled = true; }
 
   chkAutostart?.addEventListener('change', (e) => {
     api.updateSettings({ autoStartOnBoot: e.target.checked });

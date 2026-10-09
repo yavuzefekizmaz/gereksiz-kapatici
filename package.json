@@ -1,12 +1,13 @@
 {
   "name": "voldena",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Voldena - Ultra Oyun Hızlandırıcısı",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "dist": "electron-builder --win"
+    "test": "node --test",
+    "dist": "electron-builder --win --x64"
   },
   "keywords": [
     "game-booster",
@@ -25,7 +26,12 @@
     "appId": "com.voldena.gamebooster",
     "productName": "Voldena Oyun Hizlandiricisi",
     "electronVersion": "31.0.0",
-    "publish": null,
+    "publish": {
+      "provider": "github",
+      "owner": "yavuzefekizmaz",
+      "repo": "gereksiz-kapatici",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "dist"
     },
@@ -34,8 +40,8 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "asInvoker",
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -43,7 +49,25 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Voldena Oyun Hizlandiricisi",
-      "perMachine": true
+      "perMachine": false,
+      "artifactName": "Voldena.Oyun.Hizlandiricisi.Setup.${version}.exe"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "portable": {
+      "artifactName": "Voldena.Oyun.Hizlandiricisi.${version}.exe"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yavuzefekizmaz/gereksiz-kapatici.git"
   }
 }

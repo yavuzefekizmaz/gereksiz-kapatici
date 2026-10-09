@@ -80,7 +80,7 @@
             <img src="assets/logo.png" alt="Logo">
           </div>
           <div>
-            <h1 class="section-title">Canlı Sistem & Ultra Oyun Paneli</h1>
+            <h1 class="section-title">Canlı Sistem & Oyun Paneli</h1>
             <p class="section-desc">Voldena arka planda sessizce çalışır; hedef veya otomatik algılanan bir oyun açıldığında sistemi ultra hızlandırır, oyun bittiğinde kapatılan uygulamaları otomatik geri açar.</p>
           </div>
         </div>
@@ -126,7 +126,7 @@
               <span class="badge badge-medium">Orta Mod</span>
             </div>
             <div class="metric-subtext">
-              RAM temizliği + Uygulamaları kapatma ve geri açma.
+              Seçili uygulamaları normal yolla kapatma ve geri açma.
             </div>
           </div>
         </div>
@@ -138,7 +138,7 @@
           </div>
           <div class="quick-buttons-row">
             <button class="btn btn-primary" id="btn-quick-ram">
-              <i class="fa-solid fa-broom"></i> RAM'i Anında Temizle (WorkingSet Trim)
+              <i class="fa-solid fa-broom"></i> RAM yönetimi hakkında
             </button>
             <button class="btn btn-secondary" id="btn-emergency-explorer">
               <i class="fa-solid fa-window-restore"></i> Acil Explorer.exe Başlat (Ctrl+Alt+R)
@@ -188,11 +188,11 @@
 
           <div class="setting-row">
             <div class="setting-text">
-              <div class="setting-title">Smart-Sweep: Korumalılar Dışındaki TÜM Arka Plan İşlemlerini Kapat</div>
-              <div class="setting-desc">MSI Center, RGB yazılımları gibi 20-30 adet gereksiz arka plan sürecini tek seferde temizler.</div>
+              <div class="setting-title">Smart-Sweep (Devre Dışı)</div>
+              <div class="setting-desc">Toplu işlem sonlandırma güvenlik nedeniyle kaldırıldı. Yalnızca seçili ve desteklenen uygulamalara normal kapatma isteği gönderilir.</div>
             </div>
             <label class="switch">
-              <input type="checkbox" id="setting-smart-sweep">
+              <input type="checkbox" id="setting-smart-sweep" disabled>
               <span class="slider"></span>
             </label>
           </div>
@@ -315,6 +315,16 @@
           <p class="section-desc">Genel performans seviyesini, oyun kütüphanelerini ve başlangıç tercihlerini yapılandırın.</p>
         </div>
 
+        <div class="glass-card" style="margin-bottom: 20px;">
+          <h3 class="card-heading"><i class="fa-solid fa-cloud-arrow-down"></i> Uygulama Güncellemeleri</h3>
+          <p id="update-version" class="text-muted"></p>
+          <p id="update-message" class="text-muted">Güncelleme durumu yükleniyor...</p>
+          <button id="btn-check-update" class="btn btn-secondary">Güncellemeleri Kontrol Et</button>
+          <button id="btn-download-update" class="btn btn-primary" hidden>Güncellemeyi İndir</button>
+          <button id="btn-install-update" class="btn btn-primary" hidden>Kur ve Yeniden Başlat</button>
+          <button id="btn-release-page" class="btn btn-secondary">GitHub İndirme Sayfası</button>
+        </div>
+
         <!-- Global Optimization Level Card -->
         <div class="glass-card" style="margin-bottom: 20px;">
           <h3 class="card-heading" style="margin-bottom: 14px;">
@@ -329,10 +339,10 @@
               <div class="preset-top">
                 <div class="preset-icon low-icon"><i class="fa-solid fa-feather-pointed"></i></div>
                 <div class="preset-title">Düşük Seviye (Low)</div>
-                <p class="preset-desc">Yalnızca RAM çalışma kümelerini boşaltır, hiçbir uygulamayı kapatmaz.</p>
+                <p class="preset-desc">Oyunları izler; uygulamaları kapatmaz ve sistem belleğine müdahale etmez.</p>
               </div>
               <div class="preset-bottom">
-                <span class="badge badge-low">Yalnızca RAM Boşaltma</span>
+                <span class="badge badge-low">Yalnızca İzleme</span>
               </div>
             </div>
 
@@ -340,18 +350,18 @@
               <div class="preset-top">
                 <div class="preset-icon medium-icon"><i class="fa-solid fa-bolt"></i></div>
                 <div class="preset-title">Orta Seviye (Medium - Önerilen)</div>
-                <p class="preset-desc">Gereksiz uygulamaları kapatır, RAM'i boşaltır ve oyun bitince her şeyi geri açar.</p>
+                <p class="preset-desc">Seçili ve desteklenen uygulamalara normal kapatma isteği gönderir; oyun bitince kapananları geri açar.</p>
               </div>
               <div class="preset-bottom">
-                <span class="badge badge-medium">Kapatma + RAM + Geri Açma</span>
+                <span class="badge badge-medium">Normal Kapatma + Geri Açma</span>
               </div>
             </div>
 
             <div class="preset-card" data-preset="high" id="preset-high">
               <div class="preset-top">
                 <div class="preset-icon high-icon"><i class="fa-solid fa-rocket"></i></div>
-                <div class="preset-title">Yüksek Seviye (High / Ultra Mode)</div>
-                <p class="preset-desc">Oyun CPU önceliğini YÜKSEK yapar, Windows servislerini durdurur ve agresif RAM temizliği uygular.</p>
+                <div class="preset-title">Yüksek Seviye (Güvenli Kapatma)</div>
+                <p class="preset-desc">Orta modla aynı güvenli kapatma sınırlarını kullanır. CPU önceliği, Windows servisleri ve RAM çalışma kümeleri korunur.</p>
               </div>
 
               <!-- Integrated Explorer.exe Toggle directly inside Ultra Mode Card -->
@@ -361,13 +371,13 @@
                   <span class="sub-toggle-desc">Görev çubuğu ve masaüstünü koru</span>
                 </div>
                 <label class="switch switch-sm">
-                  <input type="checkbox" id="setting-keep-explorer" checked>
+                  <input type="checkbox" id="setting-keep-explorer" disabled checked>
                   <span class="slider"></span>
                 </label>
               </div>
 
               <div class="preset-bottom">
-                <span class="badge badge-high">Ultra FPS + High Priority</span>
+                <span class="badge badge-high">Güvenli Kapatma</span>
               </div>
             </div>
           </div>
@@ -537,9 +547,9 @@
       <div class="form-group">
         <label class="form-label">Optimizasyon Seviyesi</label>
         <select class="form-select" id="rule-form-level">
-          <option value="low">Düşük (Yalnızca RAM Temizliği)</option>
-          <option value="medium" selected>Orta (RAM + Belirtilen Uygulamaları Kapat + Geri Aç)</option>
-          <option value="high">Yüksek (Ultra FPS + CPU High Priority + Windows Servis Durdurma)</option>
+          <option value="low">Düşük (Yalnızca İzleme)</option>
+          <option value="medium" selected>Orta (Normal Kapatma + Geri Aç)</option>
+          <option value="high">Yüksek (Orta Modla Aynı Güvenli Kapatma)</option>
         </select>
       </div>
 
@@ -547,10 +557,10 @@
       <div class="form-group keep-explorer-row">
         <div class="setting-text">
           <div class="setting-title">Explorer.exe'yi Kapatma (Masaüstü Kabuğunu Açık Tut)</div>
-          <div class="setting-desc">Yüksek modda bile Windows görev çubuğu açık kalır.</div>
+          <div class="setting-desc">Windows görev çubuğu her modda açık kalır.</div>
         </div>
         <label class="switch">
-          <input type="checkbox" id="rule-form-keep-explorer" checked>
+          <input type="checkbox" id="rule-form-keep-explorer" disabled checked>
           <span class="slider"></span>
         </label>
       </div>

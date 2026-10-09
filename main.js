@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage, dialog, shell } = require('electron');
 const path = require('path');
 const { execSync } = require('child_process');
 const RuleStore = require('./lib/rule-store');
@@ -6,6 +6,7 @@ const RamOptimizer = require('./lib/ram-optimizer');
 const ProcessMonitor = require('./lib/process-monitor');
 const AppScanner = require('./lib/app-scanner');
 const GameDetector = require('./lib/game-detector');
+const UpdateManager = require('./lib/update-manager');
 
 // Global error handlers to prevent silent crashes
 process.on('uncaughtException', (err) => {
@@ -30,40 +31,6 @@ function isRunningAsAdmin() {
   }
 }
 
-function ensureAdminPrivileges() {
-  if (process.platform !== 'win32') return;
-
-  if (isRunningAsAdmin()) {
-    console.log('[Voldena Engine] Uygulama Yönetici (Administrator) yetkileriyle aktif.');
-    return;
-  }
-
-  // If in packaged app (.exe), manifest requireAdministrator handles elevation on launch
-  if (app.isPackaged) {
-    return;
-  }
-
-  if (process.argv.includes('--elevated-attempted')) {
-    console.warn('[Voldena Engine] Yönetici izni kullanıcı tarafından reddedildi, standart modda devam ediliyor.');
-    return;
-  }
-
-  console.log('[Voldena Engine] Geliştirme modunda Yönetici (UAC) izni isteniyor...');
-  try {
-    const exe = process.execPath;
-    const cwd = process.cwd();
-    const args = ['.', ...process.argv.slice(2), '--elevated-attempted'];
-    const argStr = args.map(a => `\`"${a}\`"`).join(' ');
-    const psCmd = `Start-Process -FilePath "${exe}" -ArgumentList '${argStr}' -WorkingDirectory "${cwd}" -Verb RunAs`;
-    execSync(`powershell -NoProfile -WindowStyle Hidden -Command "${psCmd}"`);
-
-    app.quit();
-    process.exit(0);
-  } catch (err) {
-    console.warn('[Voldena Engine] UAC yükseltme isteği iptal edildi:', err.message);
-  }
-}
-
 // Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -78,15 +45,14 @@ if (!gotTheLock) {
   });
 }
 
-// Request admin elevation if in dev mode
-ensureAdminPrivileges();
-
 let mainWindow = null;
 let tray = null;
 let ruleStore = null;
 let gameDetector = null;
 let processMonitor = null;
 let memoryInterval = null;
+let updateManager = null;
+let updateCheckTimer = null;
 
 const logoPath = path.join(__dirname, 'src', 'assets', 'logo.png');
 
@@ -154,7 +120,7 @@ function createTray() {
         }
       },
       {
-        label: 'Hızlı RAM Temizle',
+        label: 'RAM Yönetimi (Temizleme Devre Dışı)',
         click: async () => {
           const res = await RamOptimizer.trimWorkingSets();
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -213,7 +179,7 @@ app.whenReady().then(() => {
       if (state.status === 'active') {
         new Notification({
           title: `Voldena - ${state.activeRule.alias || state.activeRule.name} Başladı`,
-          body: `Ultra Optimizasyon uygulandı. Oyun kapanınca kapatılan uygulamalar otomatik geri açılacaktır.`,
+          body: `Oyun modu etkin. Seçili uygulamalara normal kapatma isteği gönderildi.`,
           icon: logoPath
         }).show();
       } else if (state.status === 'idle' && state.previousRule) {
@@ -231,6 +197,23 @@ app.whenReady().then(() => {
   processMonitor.start();
 
   createWindow();
+
+  const updateSupported = app.isPackaged && process.platform === 'win32' &&
+    !process.env.PORTABLE_EXECUTABLE_FILE;
+  updateManager = new UpdateManager({
+    app,
+    updater: updateSupported ? require('electron-updater').autoUpdater : null,
+    supported: updateSupported,
+    notify: state => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', state);
+    },
+    beforeInstall: () => {
+      if (processMonitor.getStatus().activeRuleId) return false;
+      processMonitor.stop();
+      return true;
+    }
+  });
+  if (updateSupported) updateCheckTimer = setTimeout(() => updateManager.check(), 10000);
 
   // Register Emergency Hotkey to restore Explorer
   globalShortcut.register('CommandOrControl+Alt+R', () => {
@@ -291,38 +274,21 @@ app.whenReady().then(() => {
   ipcMain.handle('save-verified-games', (_, games) => ruleStore.updateVerifiedGames(games));
 
   // Memory & Optimizer Handlers
+  ipcMain.handle('get-update-status', () => updateManager.state);
+  ipcMain.handle('check-for-updates', () => updateManager.check());
+  ipcMain.handle('download-update', () => updateManager.download());
+  ipcMain.handle('install-update', () => updateManager.install());
+  ipcMain.handle('open-release-page', () => shell.openExternal('https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/latest'));
+
   ipcMain.handle('get-memory-stats', () => RamOptimizer.getSystemMemoryStats());
   ipcMain.handle('get-detailed-processes', () => RamOptimizer.getDetailedProcesses());
 
-  ipcMain.handle('optimize-ram', async (_, level) => {
-    if (level === 'low') {
-      return await RamOptimizer.trimWorkingSets();
-    } else if (level === 'medium') {
-      const rules = ruleStore.getRules();
-      let closeList = [];
-      rules.forEach(r => { if (r.closeTargets) closeList.push(...r.closeTargets); });
-      closeList = [...new Set(closeList)];
-      await RamOptimizer.killProcesses(closeList, ruleStore.getProtectedApps());
-      return await RamOptimizer.trimWorkingSets();
-    } else if (level === 'high') {
-      const rules = ruleStore.getRules();
-      let closeList = [];
-      rules.forEach(r => { if (r.closeTargets) closeList.push(...r.closeTargets); });
-      closeList = [...new Set(closeList)];
-      await RamOptimizer.killProcesses(closeList, ruleStore.getProtectedApps());
-      
-      const setts = ruleStore.getSettings();
-      if (!setts.keepExplorer) {
-        await RamOptimizer.stopExplorer();
-      }
-      return await RamOptimizer.trimWorkingSets();
-    }
-  });
+  ipcMain.handle('optimize-ram', () => RamOptimizer.trimWorkingSets());
 
   ipcMain.handle('stop-explorer', () => RamOptimizer.stopExplorer());
   ipcMain.handle('start-explorer', () => RamOptimizer.startExplorer());
   ipcMain.handle('get-running-processes', async () => {
-    const set = await processMonitor.fetchRunningProcesses();
+    const set = await processMonitor.fetchRunningProcesses() || new Set();
     return Array.from(set).sort();
   });
 
@@ -383,7 +349,7 @@ app.on('window-all-closed', (event) => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  if (updateCheckTimer) clearTimeout(updateCheckTimer);
   if (memoryInterval) clearInterval(memoryInterval);
   if (processMonitor) processMonitor.stop();
-  RamOptimizer.startExplorer();
 });

@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const yaml = require('js-yaml');
+const asar = require('@electron/asar');
+const root = path.join(__dirname, '..');
+const pkg = require('../package.json');
+const dist = path.join(root, 'dist');
+const latest = yaml.load(fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8'));
+const setupName = `Voldena.Oyun.Hizlandiricisi.Setup.${pkg.version}.exe`;
+const portableName = `Voldena.Oyun.Hizlandiricisi.${pkg.version}.exe`;
+assert.equal(latest.version, pkg.version);
+assert.equal(latest.path, setupName);
+const setup = fs.readFileSync(path.join(dist, setupName));
+const portable = fs.readFileSync(path.join(dist, portableName));
+assert.equal(setup.subarray(0, 2).toString(), 'MZ');
+assert.equal(portable.subarray(0, 2).toString(), 'MZ');
+assert.equal(latest.sha512, crypto.createHash('sha512').update(setup).digest('base64'));
+const archive = path.join(dist, 'win-unpacked/resources/app.asar');
+const packedPackage = JSON.parse(asar.extractFile(archive, 'package.json').toString());
+assert.equal(packedPackage.version, pkg.version);
+assert.ok(packedPackage.dependencies['electron-updater']);
+for (const filename of ['main.js', 'preload.js', 'lib/ram-optimizer.js', 'lib/process-monitor.js', 'lib/update-manager.js', 'src/renderer.js', 'src/index.html']) {
+  assert.deepEqual(asar.extractFile(archive, filename), fs.readFileSync(path.join(root, filename)), `Packed file differs: ${filename}`);
+}
+const updateConfig = yaml.load(fs.readFileSync(path.join(dist, 'win-unpacked/resources/app-update.yml'), 'utf8'));
+assert.equal(updateConfig.provider, 'github');
+assert.equal(updateConfig.owner, 'yavuzefekizmaz');
+assert.equal(updateConfig.repo, 'gereksiz-kapatici');
+console.log(`Verified ${pkg.version}: EXE headers, update metadata/hash, packed source and GitHub feed`);

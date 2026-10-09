@@ -1,6 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('voldenaAPI', {
+  // GitHub release updates
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  openReleasePage: () => ipcRenderer.invoke('open-release-page'),
+  onUpdateStatus: callback => {
+    ipcRenderer.on('update-status', (_event, state) => callback(state));
+  },
+
   // Rules
   getRules: () => ipcRenderer.invoke('get-rules'),
   addRule: (rule) => ipcRenderer.invoke('add-rule', rule),

@@ -1,0 +1,82 @@
+name: Build and publish Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test
+      - name: Check release version
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -ne "v$version") {
+            throw 'Tag must match package.json version'
+          }
+          "RELEASE_TAG=v$version" >> $env:GITHUB_ENV
+      - name: Build setup and portable
+        run: npm run dist -- --publish never
+      - name: Verify packages and prepare source archive
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $setup = "dist/Voldena.Oyun.Hizlandiricisi.Setup.$version.exe"
+          $portable = "dist/Voldena.Oyun.Hizlandiricisi.$version.exe"
+          foreach ($file in @($setup, $portable, 'dist/latest.yml')) {
+            if (!(Test-Path $file)) { throw "Missing release file: $file" }
+          }
+          node scripts/verify-release.js
+          git archive --format=zip --output="dist/Voldena.Source.$version.zip" HEAD
+          $files = Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(exe|blockmap|yml|zip)$' }
+          $lines = $files | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          }
+          $lines | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+      - name: Save build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: voldena-windows-release
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publish complete release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) { throw 'Release already exists; refusing to overwrite it' }
+          $assets = Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(exe|blockmap|zip)$' -or $_.Name -in @('latest.yml', 'SHA256SUMS.txt') } | ForEach-Object { $_.FullName }
+          gh release create $env:RELEASE_TAG --target $env:GITHUB_SHA --title "Voldena $env:RELEASE_TAG" --notes-file RELEASE_NOTES.md --draft @assets
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+          gh release edit $env:RELEASE_TAG --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

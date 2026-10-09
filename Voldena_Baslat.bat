@@ -2,16 +2,8 @@
 title Voldena Oyun Hizlandiricisi
 cd /d "%~dp0"
 
-:: Yonetici (Administrator) yetki kontrolu
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Yonetici yetkisi isteniyor...
-    powershell -NoProfile -Command "Start-Process '%~f0' -Verb RunAs"
-    exit /b
-)
-
 echo ======================================================
-echo           VOLDENA OYUN HIZLANDIRICISI (ADMIN)
+echo           VOLDENA OYUN HIZLANDIRICISI
 echo ======================================================
 echo Uygulama baslatiliyor, lutfen bekleyin...
 
