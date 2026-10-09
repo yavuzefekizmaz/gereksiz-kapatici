@@ -34,3 +34,7 @@ v1.2.1 setup sürümü GitHub üzerinden yeni sürüm kontrolü yapar. Ayarlar �
 Varsayılan davranış: oyun algılanır → seçili uygulamalara kapatma uygulanır → eşlikçi uygulamalar başlatılmış olur → Voldena tepsi dahil tamamen çıkar. Programlar oyun bitince geri açılmaz. Sonraki oyun oturumunda Voldena'yı yeniden başlatın. Ayarlardan otomatik çıkışı kapatabilirsiniz.
 
 Seçili OneDrive, AnyDesk ve Overwolf için tepsi uygulamasını sonlandırma desteği eklendi; NVIDIA App / Denetim Masası yalnızca normal pencere kapatma ile ele alınır. Grafik sürücüsü ve NVIDIA Container korunur. Uygulama seçici çalışan programları otomatik yükler. Kaynak kullanımı seçili programların ve Voldena'nın kapanmasıyla azaltılır; donanım saat hızları değiştirilmez.
+
+### v1.2.3 güncelleme düzeltmesi
+
+İndirilen setup dosyası tekrar doğrulanır; mevcut kurulum klasöründe sessiz güncelleme ve otomatik yeniden açılma kullanılır. Kurucu başlatılamazsa Voldena açık kalır ve hata gösterir. Güncelleme günlüğü kullanıcı verisi klasöründe `update.log` dosyasındadır. Windows yayın kontrolü gerçek eski kurulumdan yükseltmeyi ve yeniden başlatmayı doğrular. Güncelleme sonrası v1.2.0'da kalan kullanıcılar yeni setup'ı bir defa elle çalıştırmalıdır; eski portable EXE yerine kurulum kısayolunu açmalıdır.

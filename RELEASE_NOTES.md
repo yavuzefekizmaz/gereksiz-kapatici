@@ -1,20 +1,19 @@
-## Voldena v1.2.2
+## Voldena v1.2.3
 
-- Oyun açılışındaki uygulama kapatma ve eşlikçi uygulama başlatma işlemleri tamamlanınca Voldena tepsi dahil tamamen çıkar. Bu seçenek varsayılan olarak açıktır; oyun sonrası otomatik geri açma kapalıdır. Sonraki oyun oturumu için Voldena yeniden başlatılır.
-- Seçili OneDrive örneklerine `/shutdown` gönderilir. Kişisel ve okul hesaplarının aynı oturumdaki örnekleri birlikte ele alınır.
-- Seçili OneDrive, AnyDesk ve Overwolf normal çıkıştan sonra açık kalırsa yalnızca doğrulanan kullanıcı işlemi sonlandırılabilir. Overwolf'un bilinen yardımcı uygulamaları da kapsanır; işlem ağacı sonlandırılmaz.
-- Önceki koruma listesinde kapatılmak üzere seçilmiş OneDrive / AnyDesk için çakışan varsayılan koruma kaldırılır. Diğer korumalar korunur.
-- NVIDIA App ve NVIDIA Denetim Masası pencerelerine normal kapatma isteği gönderilir. NVIDIA Container, grafik sürücüsü, NVIDIA Overlay, Windows servisleri, Explorer ve oyun başlatıcıları sonlandırılmaz. NVIDIA'nın sürücüye ait tepsi simgesi kalabilir; bu simgenin kaybolması için sürücü servisi durdurulmaz.
-- Arka plandaki PowerShell/tasklist komutları konsol penceresi açmayacak şekilde çalıştırılır. Voldena'nın kendi donanım grafik hızlandırması kapatıldı. Otomatik çıkışta açılır bildirim gösterilmez. Sistem çözünürlüğü, ekran tazeleme hızı, GPU sürücüsü, işlemci saat hızı ve sistem genelindeki RAM çalışma kümeleri değiştirilmez.
-- Uygulama seçici açılır açılmaz çalışan uygulamaları yükler. Bu yükleme, yüklü program taramasından bağımsızdır; tarama yavaşlasa veya hata verse bile çalışan liste görüntülenir. Çalışan sekmesine geçildiğinde de liste otomatik yenilenir.
-- Son işlemin kapanan, kapatılamayan ve atlanan uygulamaları yeniden açıldığında arayüzde görülebilir.
+Güncelleme kurulumunun başlamadan uygulamayı kapatabilmesine ve kurulum sonrasında yeniden açılmamasına karşı güncelleme akışı düzeltildi.
 
-31 otomatik test Windows yayın iş akışında çalıştırılır; 30 test yerel ortamda başarılı, PowerShell sözdizimi testi Windows üzerinde çalışır. Windows derlemesindeki paket ve kaynak eşleşmesi ayrıca doğrulanır. Kullanıcının bilgisayarındaki kısa siyah ekranın giderildiği ve tüm uygulamaların gerçekten kapandığı bu ortamda doğrulanamaz. Belirli bir FPS artışı veya anti-cheat sonucu garanti edilmez.
+- İndirilen setup dosyasının varlığı, Windows EXE başlığı ve GitHub güncelleme bilgisindeki SHA-512 değeri kurulumdan önce tekrar doğrulanır.
+- Kurucu mevcut çalışan uygulamanın klasörüne yönlendirilir. NSIS güncellemesi sessiz modda, kurulum tamamlandığında uygulamayı yeniden açma seçeneğiyle başlatılır.
+- Kurucunun Windows tarafından başlatıldığı doğrulanmadan Voldena kapanmaz. Başlatma hatasında uygulama açık kalır, hata gösterilir ve tekrar denemek mümkündür.
+- Güncelleme işlemleri uygulamanın kullanıcı verisi klasöründeki `update.log` dosyasına yazılır.
+- v1.2.2'deki otomatik uygulama listesi, oyun işlemleri tamamlanınca tamamen çıkış, seçili tepsi uygulamalarını kapatma ve sistem süreçlerini koruma değişiklikleri korunur.
 
-### İndirme / güncelleme
+### v1.2.0'da kalan kullanıcılar
 
-- **Setup:** `Voldena.Oyun.Hizlandiricisi.Setup.1.2.2.exe`
-- **Portable:** `Voldena.Oyun.Hizlandiricisi.1.2.2.exe`
-- **Kaynak:** `Voldena.Source.1.2.2.zip`
+Eski sürümün güncelleyicisi yeni kod kurulmadan değiştirilemez. Güncelleme sonrasında hâlâ v1.2.0 görünüyorsa **aşağıdaki setup dosyasını bir kez elle indirip çalıştırın**. Eski uygulamayı tepsiden de tamamen kapatın ve mevcut kurulum klasörünü seçin. Kurulumdan sonra uygulamada v1.2.3 göründüğünü kontrol edin. Eski portable EXE'yi açmak kurulu uygulamayı açmakla aynı şey değildir; setup'ın oluşturduğu kısayolu kullanın. Uygulama verileri kurulum sırasında silinmez.
 
-v1.2.1 setup sürümünde Ayarlar → Uygulama Güncellemeleri bölümünden kontrol edip indirin; oyunu kapattıktan sonra kurulumu başlatın. Portable sürüm yeni EXE indirilerek güncellenir. Mevcut oyun profilleri korunur. EXE'ler Windows x64 içindir ve imzasızdır.
+- **Setup:** `Voldena.Oyun.Hizlandiricisi.Setup.1.2.3.exe`
+- **Portable:** `Voldena.Oyun.Hizlandiricisi.1.2.3.exe` — yeni EXE indirerek güncellenir.
+- **Kaynak:** `Voldena.Source.1.2.3.zip`
+
+36 otomatik testin yanında Windows yayın iş akışı, gerçek v1.2.2 setup kurulumunu yeni setup ile aynı klasörde güncelleyip sürüm değişikliğini ve uygulamanın otomatik yeniden başlamasını doğrular. Bu kontrol başarılı olmadan yayın yapılmaz. Kullanıcının v1.2.0 kurulumunun başarısızlık nedeni, o sürümün yerel günlükleri olmadan kesinleştirilemez. EXE'ler Windows x64 içindir ve imzasızdır.

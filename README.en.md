@@ -24,3 +24,7 @@ System-wide working-set trimming, CPU priority changes, service stopping, Explor
 ## v1.2.2
 
 Voldena exits completely, including its tray icon, after game-start actions finish by default. Automatic restore is off; restart Voldena for the next game session. Explicitly selected OneDrive, AnyDesk and Overwolf processes have a tray-app exit policy with bounded per-process fallback. NVIDIA interfaces receive normal window-close requests only; graphics drivers and NVIDIA Container remain protected. The app picker loads running processes immediately and independently of installed-app scanning. Voldena's own hardware graphics acceleration is disabled.
+
+### v1.2.3 updater fix
+
+The downloaded setup is revalidated before launch. Silent NSIS updates target the running application's installation directory and request an automatic restart. Voldena stays open if the installer cannot start; update diagnostics are stored in `update.log` in the user-data directory. Windows release CI verifies a real installed upgrade and restart. Users still stuck on v1.2.0 need to run the new setup manually once and use its installed shortcut rather than an old portable EXE.

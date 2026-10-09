@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderUpdateStatus = state => {
     document.getElementById('update-version').textContent = `Mevcut sürüm: ${state.currentVersion}`;
     document.getElementById('update-message').textContent = state.message;
-    document.getElementById('btn-check-update').disabled = ['unsupported', 'checking', 'downloading', 'downloaded'].includes(state.status);
+    document.getElementById('btn-check-update').disabled = ['unsupported', 'checking', 'downloading', 'downloaded', 'installing'].includes(state.status);
     document.getElementById('btn-download-update').hidden = state.status !== 'available';
     document.getElementById('btn-install-update').hidden = state.status !== 'downloaded';
   };

@@ -40,6 +40,9 @@ jobs:
           "RELEASE_TAG=v$version" >> $env:GITHUB_ENV
       - name: Build setup and portable
         run: npm run dist -- --publish never
+      - name: Verify installed update and automatic restart
+        shell: pwsh
+        run: ./scripts/verify-windows-update.ps1
       - name: Verify packages and prepare source archive
         shell: pwsh
         run: |
@@ -51,7 +54,7 @@ jobs:
           }
           node scripts/verify-release.js
           git archive --format=zip --output="dist/Voldena.Source.$version.zip" HEAD
-          $files = Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(exe|blockmap|yml|zip)$' }
+          $files = Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(exe|blockmap|zip)$' -or $_.Name -eq 'latest.yml' }
           $lines = $files | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           }

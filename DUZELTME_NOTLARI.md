@@ -60,3 +60,7 @@ Oyun başlangıcı işlemleri tamamlandıktan sonra uygulama gerçek çıkış y
 Çalışan uygulama yüklemesi yüklü program taramasını beklemeyecek şekilde ayrıldı; seçici açılışı ve çalışan sekmesine geçiş güncel listeyi otomatik ister. Yüklü program taraması başarısız olsa da çalışan liste görüntülenir. Otomatik çıkışın sırası, tepsi yok edilmesi, koruma göçü, süreç kimliğinin yeniden kontrolü, NVIDIA için sonlandırma yasağı, çoklu örneklerin kısmen kapanması ve bağımsız seçici yüklemesi regresyon testleriyle denetlendi: 30 test başarılı.
 
 İşlem ve uygulama taramasında kullanılan PowerShell/tasklist komutlarının varsayılan windowsHide değeri kapalıydı. Konsol penceresinin tam ekran oyunun odağını bozma ihtimali giderildi: arka plan komutları gizli pencere ve süre sınırıyla çalıştırılır. Bu değişiklik kısa siyah ekran için olası bir tetikleyiciyi kaldırır; bilgisayardaki kesin neden olarak kanıtlanmış değildir. Oluşturulan kapatma betikleri ayrıca Windows PowerShell ayrıştırıcısıyla çalıştırılmadan denetlenir.
+
+## v1.2.3 — güncelleme kurulumu ve yeniden başlatma
+
+Setup dosyası tekrar SHA-512 ile doğrulanır, mevcut exe klasörüne sessiz NSIS güncellemesi ve otomatik yeniden başlatma bayraklarıyla gönderilir. Başlatma doğrulanmadan uygulama kapanmaz; hata durumunda açık kalır. Günlük: kullanıcı verisi klasöründe update.log. Windows CI gerçek v1.2.2 kurulumundan güncellemeyi ve yeniden açılmayı sınar. v1.2.0'da kalmış kurulumlar, eski güncelleyiciyi değiştirmek için yeni setup'ı bir defa elle çalıştırmalıdır.

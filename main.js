@@ -214,17 +214,29 @@ app.whenReady().then(() => {
 
   const updateSupported = app.isPackaged && process.platform === 'win32' &&
     !process.env.PORTABLE_EXECUTABLE_FILE;
+  const updateLogger = Object.fromEntries(['info', 'warn', 'error', 'debug'].map(level => [level, (...args) => {
+    try {
+      fs.appendFileSync(path.join(app.getPath('userData'), 'update.log'),
+        `${new Date().toISOString()} [${level}] ${args.map(String).join(' ')}\n`);
+    } catch (_) { /* A logging failure must not interrupt updates. */ }
+  }]));
+  const updater = updateSupported ? require('electron-updater').autoUpdater : null;
+  if (updater) updater.logger = updateLogger;
   updateManager = new UpdateManager({
     app,
-    updater: updateSupported ? require('electron-updater').autoUpdater : null,
+    updater,
+    logger: updateLogger,
     supported: updateSupported,
     notify: state => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', state);
     },
     beforeInstall: () => {
       if (processMonitor.getStatus().activeRuleId) return false;
-      processMonitor.stop();
       return true;
+    },
+    prepareToQuit: () => {
+      processMonitor.stop();
+      if (tray && !tray.isDestroyed()) tray.destroy();
     }
   });
   if (updateSupported) updateCheckTimer = setTimeout(() => updateManager.check(), 10000);
