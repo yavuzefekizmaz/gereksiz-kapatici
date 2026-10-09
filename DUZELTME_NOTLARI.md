@@ -45,4 +45,6 @@ Bu kontroller ve bildirilen görüntü/giriş sorununun giderilmesi Windows bilg
 
 ## Güncelleme yayını
 
-v1.0.1 setup sürümüne electron-updater tabanlı GitHub güncelleyicisi eklendi. İlk açılışta kontrol yapılır; Ayarlar bölümünden güncelleme indirilebilir ve oyun kapalıyken kurulabilir. Portable EXE otomatik değiştirilmez. v1.0.0 EXE’si çıkarılarak incelendi; güncelleyici bulunmadığı doğrulandı. Bu yüzden ilk geçişte setup bir kez çalıştırılmalıdır. Yayın iş akışı iki EXE’yi, latest.yml’yi, blockmap dosyasını, kaynak ZIP’ini ve SHA256SUMS.txt dosyasını birlikte yayımlar.
+v1.2.1 setup sürümüne electron-updater tabanlı GitHub güncelleyicisi eklendi. İlk açılışta kontrol yapılır; Ayarlar bölümünden güncelleme indirilebilir ve oyun kapalıyken kurulabilir. Portable EXE otomatik değiştirilmez. v1.0.0 EXE’si çıkarılarak incelendi; güncelleyici bulunmadığı doğrulandı. Bu yüzden ilk geçişte setup bir kez çalıştırılmalıdır. Yayın iş akışı iki EXE’yi, latest.yml’yi, blockmap dosyasını, kaynak ZIP’ini ve SHA256SUMS.txt dosyasını birlikte yayımlar.
+
+Kullanıcının kurulu sürümü ekran görüntüsünde v1.2.0 olarak doğrulandı; bu nedenle yeni yayın v1.2.1 olarak hazırlandı. Yukarıdaki v1.0.0 güncelleyici bulgusu yalnızca incelenen eski v1.0.0 yayınını kapsar; kurulu v1.2.0 için güncelleme denetimi mevcut uygulamanın GitHub düğmesinden yapılabilir.

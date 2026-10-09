@@ -25,6 +25,6 @@ Kaynak kod mevcut kurulu EXE’yi kendiliğinden güncellemez. Setup ve portable
 
 ## Güncellemeler
 
-v1.0.1 setup sürümü GitHub üzerinden yeni sürüm kontrolü yapar. Ayarlar → Uygulama Güncellemeleri bölümünden indirip kurabilirsiniz. v1.0.0’da güncelleyici bulunmadığından ilk geçişte yeni setup bir kez çalıştırılmalıdır. Portable sürümün güncellemesi yeni EXE indirilerek yapılır.
+v1.2.1 setup sürümü GitHub üzerinden yeni sürüm kontrolü yapar. Ayarlar → Uygulama Güncellemeleri bölümünden indirip kurabilirsiniz. Kurulu v1.2.0 sürümünün güncelleme ekranından yeni yayın denetlenebilir. Yayımlanmış v1.0.0 EXE’sinde güncelleyici bulunmadığından yalnızca o sürümden geçişte setup elle çalıştırılmalıdır. Portable sürümün güncellemesi yeni EXE indirilerek yapılır.
 
 `v` ile başlayan ve package.json sürümüyle eşleşen bir etiket gönderildiğinde GitHub Actions Windows x64 setup, portable, güncelleme metadatası ve kaynak ZIP’i oluşturur; testler ve paket kontrolleri başarılıysa sürümü yayımlar.
