@@ -257,6 +257,8 @@ app.whenReady().then(() => {
         if (process.argv.includes('--preview-cleanup')) {
           await mainWindow.webContents.executeJavaScript('void window.openCleanupPreview()');
           await new Promise(resolve=>setTimeout(resolve,1500));
+          // Hidden windows suspend CSS transitions; force the settled state for the screenshot.
+          await mainWindow.webContents.executeJavaScript("const modal=document.getElementById('modal-cleanup');modal.style.transition='none';modal.style.opacity='1';modal.querySelector('.modal-box').style.transform='none';");
         }
         const ui = await mainWindow.webContents.executeJavaScript(`({cpu:!!document.getElementById('val-cpu-percent-text'),cpuText:document.getElementById('val-cpu-percent-text')?.textContent,ram:!!document.getElementById('val-ram-used'),disk:!!document.getElementById('tab-disk'),autoExit:!!document.getElementById('setting-auto-exit'),diskCount:document.querySelectorAll('#tab-disk').length,ready:document.body.dataset.ready,cleanupActive:document.getElementById('modal-cleanup').classList.contains('active'),cleanupOpacity:getComputedStyle(document.getElementById('modal-cleanup')).opacity})`);
         let startupTest=null;

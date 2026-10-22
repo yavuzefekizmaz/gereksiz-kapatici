@@ -7,7 +7,8 @@ $oldInstaller = Join-Path $env:RUNNER_TEMP 'Voldena-previous-setup.exe'
 $exe = Join-Path $installDir 'Voldena Oyun Hizlandiricisi.exe'
 $newInstaller = (Resolve-Path "dist/Voldena.Oyun.Hizlandiricisi.Setup.$version.exe").Path
 Invoke-WebRequest 'https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/download/v1.2.2/Voldena.Oyun.Hizlandiricisi.Setup.1.2.2.exe' -OutFile $oldInstaller
-$checksums = (Invoke-WebRequest 'https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/download/v1.2.2/SHA256SUMS.txt').Content
+$checksumResponse = (Invoke-WebRequest 'https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/download/v1.2.2/SHA256SUMS.txt').Content
+$checksums = if ($checksumResponse -is [byte[]]) { [Text.Encoding]::UTF8.GetString($checksumResponse) } else { [string]$checksumResponse }
 $expected = [regex]::Match($checksums,'(?im)^([0-9a-f]{64})\s+\*?Voldena\.Oyun\.Hizlandiricisi\.Setup\.1\.2\.2\.exe\s*$').Groups[1].Value
 if (!$expected -or (Get-FileHash -LiteralPath $oldInstaller -Algorithm SHA256).Hash -ine $expected) { throw 'Previous installer integrity failed' }
 $old = Start-Process $oldInstaller -ArgumentList @('/S', "/$scope", "/D=$installDir") -WindowStyle Hidden -Wait -PassThru
