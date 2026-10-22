@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   refreshHardware();
-  setInterval(refreshHardware, 3500);
+  // Main-process hardware updates provide the live samples.
 
   api.onMemoryUpdate((stats) => {
     updateHardwareUI(stats);
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-quick-ram')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-quick-ram');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Önizleme...';
 
     try {
       const res = await api.optimizeRam('low');
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="manual-boost-name">Genel Hızlı Oyun Modu</div>
           <div class="manual-boost-meta">
             <span class="chip-sm chip-primary"><i class="fa-solid fa-broom"></i> Hızlı Temizlik</span>
-            <span class="chip-sm"><i class="fa-solid fa-memory"></i> Standart RAM Boşaltma</span>
+            <span class="chip-sm"><i class="fa-solid fa-memory"></i> Seçili uygulamalar</span>
           </div>
         </div>
       </div>
@@ -1795,11 +1795,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-quick-disk-clean')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-quick-disk-clean');
     const origHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Önizleme...';
     btn.disabled = true;
 
     try {
-      const res = await api.cleanJunkFiles();
+      const res = await window.openCleanupPreview();
       if (!res.success) { showToast(res.message || res.error || 'İptal edildi.'); return; }
       showToast(res.message || 'Disk çöp ve geçici dosyaları başarıyla temizlendi!', 'fa-solid fa-broom');
       await loadDashboardDrives();
@@ -1966,11 +1966,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById(buttonId);
     if (!btn) return;
     const origText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Önizleme...';
     btn.disabled = true;
 
     try {
-      const res = await api.cleanJunkFiles();
+      const res = await window.openCleanupPreview();
       if (!res.success) { showToast(res.message || res.error || 'İptal edildi.'); return; }
       await showAlertDialog(
         `Çöp ve geçici dosyalar başarıyla temizlendi!<br><br><strong>${res.message}</strong>`,

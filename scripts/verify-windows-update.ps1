@@ -46,6 +46,7 @@ New-Item -ItemType Directory -Path $testData -Force | Out-Null
 $process = Start-Process $exe -ArgumentList @('--voldena-safe-test',"--test-data=$testData",'--startup','--verify-startup') -WindowStyle Hidden -PassThru
 if (!$process.WaitForExit(45000)) { throw 'Safe installed smoke test did not exit' }
 $smoke = Get-Content (Join-Path $testData 'smoke.json') -Raw | ConvertFrom-Json
+$smoke | Select-Object version,hidden,ui,errors,startupTest,error | ConvertTo-Json -Depth 6 | Write-Host
 if ($smoke.error -or $smoke.version -ne $version -or !$smoke.hidden -or $smoke.ui.ready -ne 'true' -or $smoke.ui.diskCount -ne 1 -or !$smoke.ui.cpu -or !$smoke.ui.autoExit) { throw 'Installed UI smoke test failed' }
 if (!$smoke.startupTest.on -or $smoke.startupTest.off) { throw 'Real startup registration on/off failed' }
 if ($smoke.errors.Count) { throw 'Renderer emitted errors' }

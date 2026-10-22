@@ -4,18 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voldena Oyun Hızlandırıcısı</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles/refinement.css">
+  <link rel="stylesheet" href="vendor/fontawesome/package/css/all.min.css">
 </head>
 <body>
 
   <!-- Frameless Custom Titlebar -->
   <div class="titlebar">
     <div class="titlebar-brand">
-      <img src="assets/logo.png" alt="Voldena Logo">
+      <img src="assets/voldena-mark.png" alt="Voldena Logo">
       <span class="brand-text">VOLDENA</span>
       <span class="brand-tag">ULTRA GAME ENGINE</span>
       <span class="brand-tag brand-admin" id="titlebar-admin-badge" title="Uygulamanın yetki durumu">
@@ -81,7 +79,7 @@
       <section class="tab-content active" id="tab-dashboard">
         <div class="section-header hero-header">
           <div class="hero-logo-box">
-            <img src="assets/logo.png" alt="Logo">
+            <img src="assets/voldena-mark.png" alt="Logo">
           </div>
           <div>
             <h1 class="section-title">Canlı Sistem & Ultra Oyun Paneli</h1>
@@ -183,7 +181,7 @@
             </div>
             <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 8px;">
               <button class="btn btn-primary" id="btn-quick-disk-clean" type="button" style="flex: 1; padding: 7px 10px; font-size: 11.5px; font-weight: 600; height: 32px;">
-                <i class="fa-solid fa-broom"></i> Otomatik Disk Temizliği
+                <i class="fa-solid fa-broom"></i> Geçici Dosyaları İncele
               </button>
               <button class="btn btn-secondary" id="btn-open-disk-tab" type="button" style="padding: 7px 12px; font-size: 11.5px; height: 32px;" title="Tüm Diskleri ve Dosyaları Detaylı İncele">
                 <i class="fa-solid fa-up-right-from-square"></i> Detaylı
@@ -377,10 +375,10 @@
         <div class="section-header flex-header">
           <div>
             <h1 class="section-title">Disk Temizliği & Depolama Yönetimi</h1>
-            <p class="section-desc">Bilgisayarınızdaki diskleri inceleyin, gereksiz temp ve çöp dosyalarını tek tıkla silin, en çok yer kaplayan büyük dosyaları tespit edin.</p>
+            <p class="section-desc">Bilgisayarınızdaki diskleri inceleyin, geçici dosyaları silmeden önce kapsamını ve boyutunu görün, en çok yer kaplayan büyük dosyaları tespit edin.</p>
           </div>
           <button class="btn btn-primary" id="btn-disk-tab-quick-clean">
-            <i class="fa-solid fa-broom"></i> Otomatik Disk Temizliği
+            <i class="fa-solid fa-broom"></i> Geçici Dosyaları İncele
           </button>
         </div>
 
@@ -935,6 +933,17 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
+  <div class="modal-overlay" id="modal-cleanup">
+    <div class="modal-box cleanup-modal" role="dialog" aria-modal="true" aria-labelledby="cleanup-title">
+      <div class="cleanup-heading"><div><div class="cleanup-eyebrow">ÖNCE İNCELE · SONRA TEMİZLE</div><h2 id="cleanup-title">Ne silineceği belli olsun.</h2></div><i class="fa-solid fa-shield-halved" style="font-size:30px;color:var(--primary)"></i></div>
+      <div class="cleanup-scope"><strong>Bu dosyalar neden geçici?</strong> Temp dosyaları, uygulamaların işlem veya kurulum sırasında kullandığı çalışma dosyalarıdır. CrashDumps dosyaları hata incelemek için oluşan bellek dökümleridir. Yalnızca bu iki kullanıcı klasöründeki <strong>.tmp / .temp / .dmp</strong> dosyalarından en az 7 gündür değişmeyenler adaydır. Eski bir hata dökümünü incelemek istiyorsanız temizlemeyin.<br><strong>Kapsam dışında:</strong> belgeler, OneDrive, İndirilenler, alt klasörler, Windows, oyunlar, shader önbellekleri ve geri dönüşüm kutusu. Değişen veya kilitli dosyalar atlanır.</div>
+      <div class="cleanup-summary" id="cleanup-summary"></div>
+      <div class="cleanup-files" id="cleanup-files"></div>
+      <div id="cleanup-disk-result"></div>
+      <div class="cleanup-footer"><span>Önizleme, silme işlemi yapmaz.<br>Başlattığınızda yalnızca listedeki dosyalar kalıcı silinir.</span><div style="display:flex;gap:10px"><button class="btn btn-secondary" id="cleanup-close">Vazgeç</button><button class="btn btn-primary" id="cleanup-start">Listedeki geçici dosyaları temizle</button></div></div>
+    </div>
+  </div>
+  <script src="cleanup-preview.js"></script>
   <script src="app-picker-data.js"></script>
   <script src="renderer.js"></script>
 </body>

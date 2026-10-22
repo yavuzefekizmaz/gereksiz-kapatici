@@ -65,7 +65,7 @@ contextBridge.exposeInMainWorld('voldenaAPI', {
   boostComputer: () => ipcRenderer.invoke('boost-computer-now'),
   getDrivesInfo: () => ipcRenderer.invoke('get-drives-info'),
   getJunkSummary: () => ipcRenderer.invoke('get-junk-summary'),
-  cleanJunkFiles: () => ipcRenderer.invoke('clean-junk-files'),
+  cleanJunkFiles: (token) => ipcRenderer.invoke('clean-junk-files', token),
   scanLargeFiles: (drive, minSizeMb) => ipcRenderer.invoke('scan-large-files', drive, minSizeMb),
   deleteTargetFile: (filePath) => ipcRenderer.invoke('delete-target-file', filePath),
   showItemInFolder: (filePath) => ipcRenderer.invoke('show-item-in-folder', filePath),

@@ -81,7 +81,7 @@ function quitFully(report) {
 }
 app.on('before-quit', () => { app.isQuitting = true; processMonitor?.stop(); });
 
-const logoPath = path.join(__dirname, 'src', 'assets', 'logo.png');
+const logoPath = path.join(__dirname, 'src', 'assets', 'voldena-mark.png');
 
 function createWindow() {
   const appIcon = nativeImage.createFromPath(logoPath);
@@ -227,7 +227,7 @@ app.whenReady().then(() => {
     if (hardwareBusy) return;
     hardwareBusy = true;
     try {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed() && (testMode || mainWindow.isVisible())) {
       const stats = await RamOptimizer.getSystemHardwareStats();
       mainWindow.webContents.send('memory-update', stats);
     }
@@ -241,7 +241,12 @@ app.whenReady().then(() => {
     mainWindow.webContents.on('console-message',(_event,level,message)=>{if(level>=3)errors.push(message);});
     mainWindow.webContents.on('did-finish-load',async () => {
       try {
-        await new Promise(resolve=>setTimeout(resolve,4000));
+        const readyDeadline=Date.now()+20000;
+        while(Date.now()<readyDeadline) {
+          if(await mainWindow.webContents.executeJavaScript("document.body.dataset.ready==='true'"))break;
+          await new Promise(resolve=>setTimeout(resolve,500));
+        }
+        await new Promise(resolve=>setTimeout(resolve,1700));
         const ui = await mainWindow.webContents.executeJavaScript(`({cpu:!!document.getElementById('val-cpu-percent-text'),cpuText:document.getElementById('val-cpu-percent-text')?.textContent,ram:!!document.getElementById('val-ram-used'),disk:!!document.getElementById('tab-disk'),autoExit:!!document.getElementById('setting-auto-exit'),diskCount:document.querySelectorAll('#tab-disk').length,ready:document.body.dataset.ready})`);
         let startupTest=null;
         if (process.argv.includes('--verify-startup')) {
@@ -308,8 +313,8 @@ app.whenReady().then(() => {
   ipcMain.handle('update-protected-apps', (_, apps) => ruleStore.updateProtectedApps(apps));
 
   // Game Detector & Library Handlers
-  ipcMain.handle('scan-game-libraries', () => gameDetector.scanAllGameLibraries());
-  ipcMain.handle('get-discovered-games', () => gameDetector.getDiscoveredGames());
+  ipcMain.handle('scan-game-libraries', () => testMode ? [] : gameDetector.scanAllGameLibraries());
+  ipcMain.handle('get-discovered-games', () => testMode ? [] : gameDetector.getDiscoveredGames());
   ipcMain.handle('add-custom-game-path', (_, targetPath) => gameDetector.addCustomGamePath(targetPath));
   ipcMain.handle('remove-custom-game-path', (_, targetPath) => gameDetector.removeCustomGamePath(targetPath));
   ipcMain.handle('get-custom-game-paths', () => ruleStore.getCustomGamePaths());
@@ -370,13 +375,17 @@ app.whenReady().then(() => {
   // Disk & Storage Cleaner Endpoints
   ipcMain.handle('get-drives-info', () => DiskCleaner.getDrivesInfo());
   ipcMain.handle('get-junk-summary', () => DiskCleaner.getJunkSummary());
-  ipcMain.handle('clean-junk-files', async () => {
-    const preview = await DiskCleaner.getJunkSummary();
+  ipcMain.handle('clean-junk-files', async (_, token) => {
+    const selected = DiskCleaner.previews.get(token);
+    if(!selected) return {success:false,error:'Önce temizlik önizlemesini açın.'};
+    const bytes=selected.files.reduce((sum,f)=>sum+f.size,0);
     const answer = await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Gösterilen dosyaları temizle'],defaultId:0,cancelId:0,
-      title:'Temizlik kapsamı', message: preview.displaySize + ' — yalnızca 7 günden eski kullanıcı Temp ve CrashDumps dosyaları.',
-      detail:preview.categories.map(c=>c.name+': '+c.displaySize).join('\n')+'\nKişisel belgeler, OneDrive, Windows, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
+      title:'Gösterilen geçici dosyaları sil', message: (bytes/1073741824).toFixed(3)+' GB — önizlemedeki '+selected.files.length+' dosya kalıcı olarak silinecek.',
+      detail:'Yalnızca kullanıcı Temp (.tmp/.temp) ve CrashDumps (.dmp) klasörlerinde, en az 7 gündür değişmeyen doğrudan dosyalar. Değişen, bağlı ve kullanımda olan dosyalar atlanır.\nKişisel belgeler, OneDrive, Windows, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
     if(answer.response !== 1) return {success:false,canceled:true,message:'Temizlik iptal edildi.'};
-    return DiskCleaner.cleanJunkFiles(preview.token);
+    const report=await DiskCleaner.cleanJunkFiles(token);
+    fs.writeFileSync(path.join(app.getPath('userData'),'last-cleanup.json'),JSON.stringify({at:new Date().toISOString(),...report},null,2));
+    return report;
   });
   ipcMain.handle('scan-large-files', (_, driveLetter, minSizeMb) => DiskCleaner.scanLargeFiles(driveLetter, minSizeMb));
   ipcMain.handle('delete-target-file', async (_, filePath) => {

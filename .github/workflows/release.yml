@@ -27,6 +27,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Test
         run: npm test
+      - name: Verify harmless Windows process fixtures
+        run: node scripts/verify-safe-processes.js
       - name: Check release version
         shell: pwsh
         env:
