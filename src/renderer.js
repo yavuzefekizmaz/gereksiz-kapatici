@@ -1,31 +1,18 @@
 // Voldena UI Renderer Logic
 document.addEventListener('DOMContentLoaded', async () => {
   const api = window.voldenaAPI;
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  api.getInstallInfo().then(info=>{const outcome={'installed-and-restarted':'Güncelleme kuruldu ve yeniden açıldı.','installation-canceled-or-failed':'Son kurulum iptal edildi veya başarısız oldu; tekrar deneyin.','verification-failed':'Son kurulum doğrulanamadı.','handoff-not-completed':'Kurulum devri tamamlanmadı.'};document.getElementById('install-location').textContent=info.type+' • v'+info.version+' • '+info.exe+' '+(outcome[info.lastUpdate?.status]||'');});
+  let exitDeadline = null;
+  api.onStatusChange(state=>{
+    exitDeadline=state.exitDeadline;
+    const outcomes={closed:'Kapandı',partial:'Kısmen kapandı',failed:'Kapatılamadı',skipped:'Atlandı','not-running-or-inaccessible':'Çalışmıyor veya erişilemiyor'};
+    const details=state.report?.details||[];
+    const el=document.getElementById('session-exit-status');
+    el.dataset.report=details.map(d=>d.name+': '+(outcomes[d.outcome]||d.outcome)).join(' • ');
+  });
+  setInterval(()=>{const el=document.getElementById('session-exit-status');el.textContent=(exitDeadline?'Voldena '+Math.max(0,Math.ceil((exitDeadline-Date.now())/1000))+' saniye sonra kapanacak.':'Otomatik çıkış beklemiyor.')+' '+(el.dataset.report||'');},1000);
 
-  const renderUpdateStatus = state => {
-    document.getElementById('update-version').textContent = `Mevcut sürüm: ${state.currentVersion}`;
-    document.getElementById('update-message').textContent = state.message;
-    document.getElementById('btn-check-update').disabled = ['unsupported', 'checking', 'downloading', 'downloaded', 'installing'].includes(state.status);
-    document.getElementById('btn-download-update').hidden = state.status !== 'available';
-    document.getElementById('btn-install-update').hidden = state.status !== 'downloaded';
-  };
-  api.onUpdateStatus(renderUpdateStatus);
-  document.getElementById('btn-check-update').addEventListener('click', async () => renderUpdateStatus(await api.checkForUpdates()));
-  document.getElementById('btn-download-update').addEventListener('click', async () => renderUpdateStatus(await api.downloadUpdate()));
-  document.getElementById('btn-install-update').addEventListener('click', async () => renderUpdateStatus(await api.installUpdate()));
-  document.getElementById('btn-release-page').addEventListener('click', () => api.openReleasePage());
-  try { renderUpdateStatus(await api.getUpdateStatus()); } catch (err) { console.error(err); }
-
-  try {
-    const report = await api.getLastOptimizationReport();
-    const summary = document.getElementById('last-optimization-summary');
-    if (report) {
-      const closed = (report.killed || []).join(', ') || 'yok';
-      const failed = (report.failed || []).join(', ') || 'yok';
-      const skipped = (report.skipped || []).filter(Boolean).join(', ') || 'yok';
-      summary.textContent = `Son işlem — Kapanan: ${closed}. Kapatılamayan: ${failed}. Atlanan: ${skipped}.`;
-    } else summary.textContent = 'Henüz tamamlanmış bir oyun işlemi yok.';
-  } catch (err) { console.error(err); }
 
   // Global State
   let closeTargetsState = [];
@@ -211,15 +198,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       item.classList.add('active');
       const targetContent = document.getElementById(`tab-${tab}`);
       if (targetContent) targetContent.classList.add('active');
+
+      if (tab === 'disk' && typeof loadDiskTabContent === 'function') {
+        loadDiskTabContent();
+      }
     });
   });
 
-  // Live Memory Stats Update
-  const updateMemoryUI = (stats) => {
+  // Live Hardware & Memory Stats Update
+  const updateHardwareUI = (stats) => {
     if (!stats) return;
     const usedGb = (stats.used / 1024).toFixed(1);
     const totalGb = (stats.total / 1024).toFixed(1);
 
+    // 1. RAM Metric
     const ramUsedEl = document.getElementById('val-ram-used');
     const ramTotalEl = document.getElementById('val-ram-total');
     const ramPercentEl = document.getElementById('val-ram-percent');
@@ -229,15 +221,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (ramTotalEl) ramTotalEl.textContent = `${totalGb} GB`;
     if (ramPercentEl) ramPercentEl.textContent = `${stats.percent}%`;
     if (barRamFill) barRamFill.style.width = `${stats.percent}%`;
+
+    // 2. CPU Metric
+    const cpuPercentEl = document.getElementById('val-cpu-percent-text');
+    const barCpuFill = document.getElementById('bar-cpu-fill');
+    const cpuCoresEl = document.getElementById('val-cpu-cores-text');
+    const cpuModelEl = document.getElementById('val-cpu-model-text');
+
+    if (stats.cpuPercent !== undefined) {
+      if (cpuPercentEl) cpuPercentEl.textContent = stats.cpuPercent === null ? 'Ölçülüyor…' : `${stats.cpuPercent}%`;
+      if (barCpuFill) barCpuFill.style.width = `${stats.cpuPercent}%`;
+    }
+    if (stats.cpuCores && cpuCoresEl) {
+      cpuCoresEl.textContent = `${stats.cpuCores} Çekirdek`;
+    }
+    if (stats.cpuModel && cpuModelEl) {
+      cpuModelEl.textContent = stats.cpuModel;
+      cpuModelEl.title = stats.cpuModel;
+    }
+
+    // 3. GPU Metric
+    const gpuPercentEl = document.getElementById('val-gpu-percent-text');
+    const barGpuFill = document.getElementById('bar-gpu-fill');
+    const gpuModelEl = document.getElementById('val-gpu-model-text');
+    const gpuVramEl = document.getElementById('val-gpu-vram-text');
+
+    if (stats.gpuPercent !== undefined) {
+      if (gpuPercentEl) gpuPercentEl.textContent = `${stats.gpuPercent}%`;
+      if (barGpuFill) barGpuFill.style.width = `${stats.gpuPercent}%`;
+    }
+    if (stats.gpuModel && gpuModelEl) {
+      gpuModelEl.textContent = stats.gpuModel;
+      gpuModelEl.title = stats.gpuModel;
+    }
+    if (stats.gpuVramTotalGb && gpuVramEl) {
+      gpuVramEl.textContent = `${stats.gpuVramUsedGb || 0} / ${stats.gpuVramTotalGb} GB VRAM`;
+    }
   };
 
-  try {
-    const initialMemory = await api.getMemoryStats();
-    updateMemoryUI(initialMemory);
-  } catch (e) {}
+  const refreshHardware = async () => {
+    try {
+      const hw = await api.getHardwareStats();
+      updateHardwareUI(hw);
+    } catch (e) {
+      try {
+        const mem = await api.getMemoryStats();
+        updateHardwareUI(mem);
+      } catch (e2) {}
+    }
+  };
+
+  refreshHardware();
+  setInterval(refreshHardware, 3500);
 
   api.onMemoryUpdate((stats) => {
-    updateMemoryUI(stats);
+    updateHardwareUI(stats);
   });
 
   // Quick Action Buttons
@@ -245,10 +283,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById('btn-quick-ram');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
-    
+
     try {
       const res = await api.optimizeRam('low');
-      await showAlertDialog(res.message, 'RAM Yönetimi', 'info', 'fa-solid fa-shield-halved');
+      await refreshHardware();
+      if (!res?.success) { await showAlertDialog(res?.message || 'RAM boşaltma devre dışı.', 'Bilgi', 'info'); btn.innerHTML=originalText; return; }
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> RAM Temizlendi!';
+
+      const freedFormatted = res && res.freedMb && res.freedMb > 0
+        ? (res.freedMb >= 1000 ? `<strong>${res.freedGb} GB</strong> (${res.freedMb} MB)` : `<strong>${res.freedMb} MB</strong>`)
+        : 'Önbellek ve Çalışma Kümesi';
+
+      await showAlertDialog(
+        `Arka plan süreçleri ve sistem bellek havuzu başarıyla boşaltıldı.<br><br>Toplam <strong>${freedFormatted}</strong> RAM anında serbest bırakılarak oyun performansına aktarıldı.`,
+        'RAM Başarıyla Temizlendi',
+        'success',
+        'fa-solid fa-broom'
+      );
     } catch (err) {
       await showAlertDialog('RAM temizliği sırasında bir hata oluştu: ' + err.message, 'Hata', 'danger');
     }
@@ -263,6 +314,103 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Explorer.exe kabuğu yeniden başlatıldı.', 'fa-solid fa-window-restore');
   });
 
+  // Manual Detect & Boost Button & Choice Modal
+  const btnManualBoost = document.getElementById('btn-manual-boost');
+  const modalManualBoost = document.getElementById('modal-manual-boost');
+  const manualBoostList = document.getElementById('manual-boost-options-list');
+
+  document.getElementById('btn-close-manual-boost')?.addEventListener('click', () => {
+    modalManualBoost?.classList.remove('active');
+  });
+  document.getElementById('btn-cancel-manual-boost')?.addEventListener('click', () => {
+    modalManualBoost?.classList.remove('active');
+  });
+
+  const renderManualBoostChoices = (rules) => {
+    if (!manualBoostList) return;
+    manualBoostList.innerHTML = '';
+
+    // 1. General Quick Clean Option
+    const generalItem = document.createElement('div');
+    generalItem.className = 'manual-boost-card';
+    generalItem.innerHTML = `
+      <div class="manual-boost-left">
+        <div class="manual-boost-icon" style="background: rgba(0, 240, 255, 0.15); color: var(--primary);">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="manual-boost-info">
+          <div class="manual-boost-name">Genel Hızlı Oyun Modu</div>
+          <div class="manual-boost-meta">
+            <span class="chip-sm chip-primary"><i class="fa-solid fa-broom"></i> Hızlı Temizlik</span>
+            <span class="chip-sm"><i class="fa-solid fa-memory"></i> Standart RAM Boşaltma</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn-boost-start" type="button">
+        <i class="fa-solid fa-play"></i> Başlat
+      </button>
+    `;
+    generalItem.addEventListener('click', async () => {
+      modalManualBoost?.classList.remove('active');
+      await api.forceApplyRule(null);
+      showToast('Seçili uygulamalar işlendi. Gerçek sonuçları ayarlarda inceleyin.', 'fa-solid fa-bolt-lightning');
+    });
+    manualBoostList.appendChild(generalItem);
+
+    // 2. Defined User Rules List
+    rules.forEach(rule => {
+      const item = document.createElement('div');
+      item.className = 'manual-boost-card';
+      const closeCount = rule.closeTargets ? rule.closeTargets.length : 0;
+      const launchCount = rule.launchTargets ? rule.launchTargets.length : 0;
+      const trigger = rule.triggerProcess || 'Manuel';
+
+      item.innerHTML = `
+        <div class="manual-boost-left">
+          <div class="manual-boost-icon">
+            <i class="fa-solid fa-gamepad"></i>
+          </div>
+          <div class="manual-boost-info">
+            <div class="manual-boost-name">${rule.alias || rule.name}</div>
+            <div class="manual-boost-meta">
+              <span class="chip-sm chip-primary"><i class="fa-solid fa-crosshairs"></i> ${trigger}</span>
+              <span class="chip-sm"><i class="fa-solid fa-power-off"></i> ${closeCount} Kapatılacak</span>
+              ${launchCount > 0 ? `<span class="chip-sm"><i class="fa-solid fa-rocket"></i> ${launchCount} Açılacak</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <button class="btn-boost-start" type="button">
+          <i class="fa-solid fa-play"></i> Başlat
+        </button>
+      `;
+      item.addEventListener('click', async () => {
+        modalManualBoost?.classList.remove('active');
+        await api.forceApplyRule(rule.id);
+        showToast(`${rule.alias || rule.name} optimizasyonu zorla uygulandı!`, 'fa-solid fa-gamepad');
+      });
+      manualBoostList.appendChild(item);
+    });
+  };
+
+  btnManualBoost?.addEventListener('click', async () => {
+    const originalHtml = btnManualBoost.innerHTML;
+    btnManualBoost.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Taranıyor...';
+
+    try {
+      const result = await api.manualDetectAndBoost();
+      if (result && result.detected) {
+        showToast(`${result.rule.alias || result.rule.name} algılandı ve oyun modu hemen aktifleştirildi! (${result.closedCount || 0} uygulama kapatıldı)`, 'fa-solid fa-gamepad');
+      } else {
+        renderManualBoostChoices(result.rules || []);
+        modalManualBoost?.classList.add('active');
+      }
+    } catch (err) {
+      showToast('Oyun algılama sırasında hata: ' + err.message, 'fa-solid fa-triangle-exclamation');
+    } finally {
+      btnManualBoost.innerHTML = originalHtml;
+    }
+  });
+
   // Initial Status Check on App Load
   try {
     const initialStatus = await api.getStatus();
@@ -272,13 +420,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ruleNameVal = document.getElementById('val-active-rule-name');
       const ruleSubVal = document.getElementById('val-active-rule-sub');
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Oyun Modu: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = initialStatus.activeRule.alias || initialStatus.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `Normal Kapatma • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
+        ruleSubVal.textContent = `Seçili uygulamalar işlendi • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
       }
     }
   } catch (e) {}
@@ -292,13 +440,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.status === 'active') {
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Oyun Modu: ${data.activeRule.alias || data.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${data.activeRule.alias || data.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = data.activeRule.alias || data.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `Normal Kapatma • Kapatılan: ${data.closedApps ? data.closedApps.length : 0} uygulama ${data.isAutoDetected ? '(Otomatik Oyun Algılama)' : ''}`;
+        ruleSubVal.textContent = `Seçili uygulamalar işlendi • Kapatılan: ${data.closedApps ? data.closedApps.length : 0} uygulama ${data.isAutoDetected ? '(Otomatik Oyun Algılama)' : ''}`;
       }
     } else {
       if (dot) dot.className = 'status-dot';
@@ -327,7 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     itemsArray.forEach((item, idx) => {
       const pill = document.createElement('div');
       pill.className = 'app-pill';
-      
+
       const isUrl = item.startsWith('http://') || item.startsWith('https://');
       const iconClass = isUrl ? 'fa-solid fa-link' : 'fa-solid fa-cube';
 
@@ -446,7 +594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.innerHTML = '';
 
     const filterText = filter.toLowerCase().trim();
-    const filtered = cachedDiscoveredGames.filter(g => 
+    const filtered = cachedDiscoveredGames.filter(g =>
       g.name.toLowerCase().includes(filterText) || g.path.toLowerCase().includes(filterText) || (g.platform && g.platform.toLowerCase().includes(filterText))
     );
 
@@ -537,13 +685,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById('btn-scan-game-libraries');
     const original = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Taranıyor...';
-    
+
     await api.scanGameLibraries();
     await loadDiscoveredGames(true);
-    
+
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Tarandı!';
     showToast(`${cachedDiscoveredGames.length} adet oyun başarıyla tespit edildi.`);
-    
+
     setTimeout(() => {
       btn.innerHTML = original;
     }, 2000);
@@ -600,36 +748,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pickerTitle = document.getElementById('picker-modal-title');
 
   // Load Apps Dataset
-  const loadAppsData = async (forceRefresh = false, runningOnly = false) => {
-    const runningList = document.getElementById('list-running-apps');
-    runningList.innerHTML = '<div style="padding:20px;text-align:center;">Çalışan uygulamalar yükleniyor...</div>';
-    const filter = () => inputPickerSearch.value.toLowerCase().trim();
-    await window.voldenaPickerData.refreshPickerData(api, {
-      running: data => {
-        cachedRunningApps = data;
-        document.getElementById('count-running').textContent = data.length;
-        renderRunningPane(filter());
-      },
-      popular: data => { cachedPopularApps = data; renderPopularPane(filter()); },
-      installed: data => {
-        cachedInstalledApps = data;
-        document.getElementById('count-installed').textContent = data.length;
-        renderInstalledPane(filter());
-      },
-      error: (kind, error) => {
-        console.error(`Uygulama listesi alınamadı (${kind}):`, error);
-        if (kind === 'running') {
-          cachedRunningApps = [];
-          runningList.innerHTML = '<div style="padding:20px;text-align:center;">Çalışan uygulamalar alınamadı. Yenile ile tekrar deneyebilirsiniz.</div>';
-        }
-      }
-    }, {
-      loadPopular: !runningOnly && (forceRefresh || cachedPopularApps.length === 0),
-      loadInstalled: !runningOnly && (forceRefresh || cachedInstalledApps.length === 0),
-      forceRefresh
-    });
-    if (pickerSelectedCountLabel) pickerSelectedCountLabel.textContent = `${selectedInPicker.size} uygulama seçildi`;
-  };
+  const loadAppsData = (forceRefresh = false) => window.voldenaPickerData.refreshPickerData(api, {
+    running: data => {cachedRunningApps=data;document.getElementById('count-running').textContent=data.length;renderRunningPane(inputPickerSearch.value.toLowerCase());},
+    popular: data => {cachedPopularApps=data;renderPopularPane(inputPickerSearch.value.toLowerCase());},
+    installed: data => {cachedInstalledApps=data;document.getElementById('count-installed').textContent=data.length;renderInstalledPane(inputPickerSearch.value.toLowerCase());},
+    error: (kind, error) => {const el=document.getElementById(kind==='running'?'list-running-apps':'list-installed-apps');if(el)el.textContent='Liste alınamadı: '+error.message;}
+  }, {loadPopular:forceRefresh||!cachedPopularApps.length,loadInstalled:forceRefresh||!cachedInstalledApps.length,forceRefresh});
 
   // Render Popular Apps Pane
   const renderPopularPane = (filter = '') => {
@@ -637,7 +761,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!container) return;
     container.innerHTML = '';
 
-    const filtered = cachedPopularApps.filter(a => 
+    const filtered = cachedPopularApps.filter(a =>
       a.name.toLowerCase().includes(filter) || a.exe.toLowerCase().includes(filter) || a.category.toLowerCase().includes(filter)
     );
 
@@ -689,7 +813,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!container) return;
     container.innerHTML = '';
 
-    const filtered = cachedInstalledApps.filter(a => 
+    const filtered = cachedInstalledApps.filter(a =>
       a.name.toLowerCase().includes(filter) || (a.exe && a.exe.toLowerCase().includes(filter))
     );
 
@@ -743,7 +867,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!container) return;
     container.innerHTML = '';
 
-    const filtered = cachedRunningApps.filter(p => 
+    const filtered = cachedRunningApps.filter(p =>
       p.name.toLowerCase().includes(filter) || (p.title && p.title.toLowerCase().includes(filter))
     );
 
@@ -764,7 +888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (isCritical) {
         dangerClass = 'danger-critical';
         iconClass = 'fa-solid fa-ban';
-        dangerBadge = `<span class="danger-badge-critical" title="Bu işlem güvenli kapatma kapsamında desteklenmiyor."><i class="fa-solid fa-ban"></i> Kapatma Desteklenmiyor</span>`;
+        dangerBadge = `<span class="danger-badge-critical" title="Bu süreç Windows için hayati önem taşır. Kapatılamaz, kapatılırsa bilgisayar çöker/yeniden başlar."><i class="fa-solid fa-ban"></i> Kritik Sistem (Kapatılamaz - PC Çöker)</span>`;
       } else if (isWarning) {
         dangerClass = 'danger-warning';
         iconClass = 'fa-solid fa-triangle-exclamation';
@@ -798,7 +922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       item.addEventListener('click', (e) => {
         if (isSelectionDisabled) {
-          showToast(`${p.name} kapatılmasına izin verilen uygulamalar arasında değil.`, 'fa-solid fa-ban');
+          showToast(`${p.name} kritik bir sistem sürecidir. Bilgisayarınızın çökmesini engellemek için kapatılamaz!`, 'fa-solid fa-ban');
           return;
         }
 
@@ -858,9 +982,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     inputPickerSearch.value = '';
     if (btnClearPickerSearch) btnClearPickerSearch.style.display = 'none';
 
-    renderPopularPane('');
-    renderInstalledPane('');
-    await loadAppsData();
+    renderAllPickerPanes('');
+    void loadAppsData();
   };
 
   const closeAppPicker = () => {
@@ -885,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.classList.add('active');
       const targetPane = document.getElementById(`pane-${tab}`);
       if (targetPane) targetPane.classList.add('active');
-      if (tab === 'running') loadAppsData(false, true);
+      if (tab === 'running') void loadAppsData();
     });
   });
 
@@ -949,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selected = await api.selectFile();
     if (selected) {
       const filename = selected.split('\\').pop().split('/').pop();
-      const target = filename || selected;
+      const target = (pickerTargetMode === 'launch') ? selected : (filename || selected);
       selectedInPicker.add(target);
       renderAllPickerPanes('');
       showToast(`Dosya seçildi ve eklendi: ${target}`);
@@ -1005,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('rule-form-name').value = ruleToEdit.name || '';
       document.getElementById('rule-form-trigger').value = ruleToEdit.triggerProcess || '';
       document.getElementById('rule-form-level').value = ruleToEdit.optimizationLevel || 'medium';
-      if (chkKeepExplorer) chkKeepExplorer.checked = true;
+      if (chkKeepExplorer) chkKeepExplorer.checked = ruleToEdit.keepExplorer !== false;
 
       closeTargetsState = [...(ruleToEdit.closeTargets || [])];
       launchTargetsState = [...(ruleToEdit.launchTargets || [])];
@@ -1117,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     rules.forEach(rule => {
       const levelBadge = rule.optimizationLevel === 'high'
-        ? `<span class="badge badge-high">Güvenli Kapatma</span>`
+        ? `<span class="badge badge-high">Seçili Uygulamalar ${rule.keepExplorer ? '(Explorer Açık)' : ''}</span>`
         : rule.optimizationLevel === 'medium'
         ? '<span class="badge badge-medium">Orta Mod</span>'
         : '<span class="badge badge-low">Düşük Mod</span>';
@@ -1226,7 +1349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const badgeVal = document.getElementById('val-active-preset-badge');
     if (badgeVal) {
       if (selectedLevel === 'high') {
-        badgeVal.innerHTML = '<span class="badge badge-high">Güvenli Kapatma</span>';
+        badgeVal.innerHTML = '<span class="badge badge-high">Seçili Uygulamalar</span>';
       } else if (selectedLevel === 'low') {
         badgeVal.innerHTML = '<span class="badge badge-low">Düşük Mod</span>';
       } else {
@@ -1342,39 +1465,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   // SETTINGS TOGGLES
   // ==========================================
   const chkAutostart = document.getElementById('setting-autostart');
+  const chkAutoExit = document.getElementById('setting-auto-exit');
   const chkMinimized = document.getElementById('setting-minimized');
   const chkNotifications = document.getElementById('setting-notifications');
   const chkAutoRestore = document.getElementById('setting-auto-restore');
-  const chkExitAfterOptimization = document.getElementById('setting-exit-after-optimization');
-  const chkForceTrayApps = document.getElementById('setting-force-tray-apps');
   const chkSmartSweep = document.getElementById('setting-smart-sweep');
   const chkAutoGameDetection = document.getElementById('setting-auto-game-detection');
   const chkAutoGameDetectionSettings = document.getElementById('setting-auto-game-detection-settings');
   const chkKeepExplorerSettings = document.getElementById('setting-keep-explorer');
 
   if (chkAutostart) chkAutostart.checked = !!settings.autoStartOnBoot;
+  if (chkAutoExit) chkAutoExit.checked=settings.exitAfterOptimization!==false;
+  chkAutoExit?.addEventListener('change',async e=>{const updated=await api.updateSettings({exitAfterOptimization:e.target.checked});if(!e.target.checked)exitDeadline=null;if(chkAutoRestore){chkAutoRestore.disabled=e.target.checked;chkAutoRestore.checked=updated.autoRestoreOnExit;}});
   if (chkMinimized) chkMinimized.checked = !!settings.startMinimized;
   if (chkNotifications) chkNotifications.checked = !!settings.notifyOnAction;
-  if (chkAutoRestore) {
-    chkAutoRestore.checked = settings.exitAfterOptimization === false && settings.autoRestoreOnExit === true;
-    chkAutoRestore.disabled = settings.exitAfterOptimization !== false;
-  }
-  if (chkExitAfterOptimization) chkExitAfterOptimization.checked = settings.exitAfterOptimization !== false;
-  if (chkForceTrayApps) chkForceTrayApps.checked = settings.forceCloseSelectedTrayApps !== false;
-  chkExitAfterOptimization?.addEventListener('change', async e => {
-    await api.updateSettings({ exitAfterOptimization: e.target.checked, autoRestoreOnExit: false });
-    if (chkAutoRestore) { chkAutoRestore.checked = false; chkAutoRestore.disabled = e.target.checked; }
-    showToast(e.target.checked ? 'İşlemler bitince Voldena tamamen kapanacak.' : 'Voldena oyun sırasında açık kalacak.');
-  });
-  chkForceTrayApps?.addEventListener('change', e => api.updateSettings({ forceCloseSelectedTrayApps: e.target.checked }));
-  if (chkSmartSweep) { chkSmartSweep.checked = false; chkSmartSweep.disabled = true; }
+  if (chkAutoRestore) {chkAutoRestore.checked = settings.autoRestoreOnExit === true && settings.exitAfterOptimization === false;chkAutoRestore.disabled=settings.exitAfterOptimization!==false;}
+  if (chkSmartSweep) chkSmartSweep.checked = !!settings.smartSweep;
   if (chkAutoGameDetection) chkAutoGameDetection.checked = settings.autoGameDetection !== false;
   if (chkAutoGameDetectionSettings) chkAutoGameDetectionSettings.checked = settings.autoGameDetection !== false;
-  if (chkKeepExplorerSettings) { chkKeepExplorerSettings.checked = true; chkKeepExplorerSettings.disabled = true; }
+  if (chkKeepExplorerSettings) chkKeepExplorerSettings.checked = settings.keepExplorer !== false;
 
-  chkAutostart?.addEventListener('change', (e) => {
-    api.updateSettings({ autoStartOnBoot: e.target.checked });
-    showToast(e.target.checked ? 'Windows başlangıcında otomatik başlatma açıldı.' : 'Başlangıçta çalıştırma kapatıldı.');
+  chkAutostart?.addEventListener('change', async e => {
+    const requested=e.target.checked;e.target.disabled=true;
+    try {await api.updateSettings({autoStartOnBoot:requested});showToast(requested?'Windows başlangıcı açıldı; tepside başlayacak.':'Windows başlangıcı kapatıldı.');}
+    catch(err){e.target.checked=!requested;await showAlertDialog('Başlangıç kaydı değiştirilemedi: '+err.message,'Başlangıç ayarı','danger');}
+    finally{e.target.disabled=false;}
   });
   chkMinimized?.addEventListener('change', (e) => {
     api.updateSettings({ startMinimized: e.target.checked });
@@ -1384,8 +1499,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     api.updateSettings({ notifyOnAction: e.target.checked });
     showToast(e.target.checked ? 'Masaüstü bildirimleri açıldı.' : 'Masaüstü bildirimleri kapatıldı.');
   });
-  chkAutoRestore?.addEventListener('change', (e) => {
-    api.updateSettings({ autoRestoreOnExit: e.target.checked });
+  chkAutoRestore?.addEventListener('change', async (e) => {
+    const updated = await api.updateSettings({ autoRestoreOnExit: e.target.checked });
+    e.target.checked = updated.autoRestoreOnExit;
     showToast(e.target.checked ? 'Otomatik geri açma (Auto-restore) etkinleştirildi.' : 'Otomatik geri açma devre dışı bırakıldı.');
   });
   chkSmartSweep?.addEventListener('change', (e) => {
@@ -1406,4 +1522,585 @@ document.addEventListener('DOMContentLoaded', async () => {
     api.updateSettings({ keepExplorer: e.target.checked });
     showToast(e.target.checked ? 'Ultra modda Explorer.exe açık tutulacak.' : 'Ultra modda Explorer.exe durdurulacak.');
   });
+
+  // ==========================================
+  // ==========================================
+  // CLOUD & LOCAL UPDATER SYSTEM
+  // ==========================================
+  const appVersionBadge = document.getElementById('app-current-version-badge');
+  const updateStatusBadge = document.getElementById('update-status-badge');
+  const btnCheckGithubUpdate = document.getElementById('btn-check-github-update');
+  const btnCheckUpdate = document.getElementById('btn-check-local-update');
+  const btnApplyUpdate = document.getElementById('btn-apply-local-update');
+  const btnPickUpdate = document.getElementById('btn-pick-local-update');
+  const updateDetailsBox = document.getElementById('update-details-box');
+  const githubProgressContainer = document.getElementById('github-download-progress-container');
+  const githubProgressBar = document.getElementById('github-download-bar');
+  const githubPercentage = document.getElementById('github-download-percentage');
+  const githubDownloadInfo = document.getElementById('github-download-info');
+
+  let pendingUpdateFilePath = '';
+  let pendingGithubDownloadUrl = '';
+  let pendingGithubFileName = '';
+
+  // Load current app version
+  try {
+    const currentVer = await api.getAppVersion();
+    if (appVersionBadge) appVersionBadge.textContent = `v${currentVer}`;
+  } catch (e) {}
+
+  // Listen for live GitHub download progress
+  api.onGithubUpdateProgress((data) => {
+    if (!data) return;
+    if (githubProgressContainer) githubProgressContainer.style.display = 'block';
+    if (githubProgressBar) githubProgressBar.style.width = `${data.percent || 0}%`;
+    if (githubPercentage) githubPercentage.textContent = `%${data.percent || 0}`;
+    if (githubDownloadInfo) {
+      if (data.ready) {
+        githubDownloadInfo.innerHTML = '<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> İndirme tamamlandı! Yükleyici başlatılıyor...</span>';
+      } else {
+        githubDownloadInfo.textContent = `${data.downloadedMb || 0} MB / ${data.totalMb || 0} MB indirildi`;
+      }
+    }
+  });
+
+  const handleUpdateCheckResult = (res, isGithub = false) => {
+    if (!res) return;
+    if(res.portable) { if(updateDetailsBox){updateDetailsBox.style.display='block';updateDetailsBox.textContent='Portable kopya: yeni EXE için GitHub sürüm sayfasını açın.';} if(btnApplyUpdate)btnApplyUpdate.style.display='none'; return; }
+
+    if (githubProgressContainer) githubProgressContainer.style.display = 'none';
+
+    if (res.hasUpdate) {
+      if (isGithub && res.downloadUrl) {
+        pendingGithubDownloadUrl = res.downloadUrl;
+        pendingGithubFileName = res.fileName;
+        pendingUpdateFilePath = '';
+      } else if (res.filePath) {
+        pendingUpdateFilePath = res.filePath;
+        pendingGithubDownloadUrl = '';
+        pendingGithubFileName = '';
+      }
+
+      if (updateStatusBadge) {
+        updateStatusBadge.textContent = `Yeni Sürüm: v${res.latestVersion}`;
+        updateStatusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+        updateStatusBadge.style.color = 'var(--success)';
+        updateStatusBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      }
+      if (btnApplyUpdate) {
+        btnApplyUpdate.style.display = 'inline-flex';
+        btnApplyUpdate.innerHTML = isGithub
+          ? `<i class="fa-solid fa-cloud-arrow-down"></i> GitHub'dan v${res.latestVersion} İndir & Kur`
+          : `<i class="fa-solid fa-download"></i> v${res.latestVersion} Kur & Yeniden Başlat`;
+      }
+      if (updateDetailsBox) {
+        updateDetailsBox.style.display = 'block';
+        updateDetailsBox.innerHTML = `
+          <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">
+            <i class="fa-solid fa-circle-check" style="color: var(--success); margin-right: 6px;"></i>Yeni Güncelleme Mevcut: v${res.latestVersion}
+          </div>
+          <div style="color: var(--text-main); margin-bottom: 4px;"><strong>Paket:</strong> ${res.fileName} (${res.sizeMb} MB)</div>
+          <div style="color: var(--text-dim); font-size: 11.5px; margin-bottom: 8px;">Kaynak: ${isGithub ? 'GitHub Releases (' + (res.publishedAt || 'Yeni') + ')' : (res.filePath || 'Yerel')}</div>
+          ${res.releaseNotes ? `
+            <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 10px; margin-top: 6px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 4px;">Sürüm Yenilikleri:</div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4; white-space: pre-wrap;">${escapeHTML(res.releaseNotes)}</div>
+            </div>
+          ` : ''}
+        `;
+      }
+      showToast(`Yeni sürüm bulundu: v${res.latestVersion}! Güncelle butonuna basarak yükleyebilirsiniz.`, 'fa-solid fa-cloud-arrow-down');
+    } else {
+      pendingUpdateFilePath = '';
+      pendingGithubDownloadUrl = '';
+      pendingGithubFileName = '';
+
+      if (updateStatusBadge) {
+        updateStatusBadge.textContent = 'Kontrol Sonucu';
+        updateStatusBadge.style.background = 'rgba(0, 240, 255, 0.1)';
+        updateStatusBadge.style.color = 'var(--primary)';
+        updateStatusBadge.style.borderColor = 'rgba(0, 240, 255, 0.3)';
+      }
+      if (btnApplyUpdate) btnApplyUpdate.style.display = 'none';
+      if (updateDetailsBox) {
+        updateDetailsBox.style.display = 'block';
+        updateDetailsBox.innerHTML = `
+          <div style="color: var(--text-muted);">
+            <i class="fa-solid fa-check-double" style="color: var(--primary); margin-right: 6px;"></i>${res.message || `Uygulamanız şu anda en güncel sürümde (v${res.currentVersion}).`}
+          </div>
+        `;
+      }
+      showToast(res.message || 'Uygulamanız güncel. Yeni bir sürüm paketi bulunamadı.');
+    }
+  };
+
+  btnCheckGithubUpdate?.addEventListener('click', async () => {
+    const origHtml = btnCheckGithubUpdate.innerHTML;
+    btnCheckGithubUpdate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> GitHub Taranıyor...';
+
+    try {
+      const res = await api.checkGithubUpdate();
+      handleUpdateCheckResult(res, true);
+    } catch (err) {
+      showToast('GitHub güncelleme kontrolünde hata: ' + err.message, 'fa-solid fa-triangle-exclamation');
+    } finally {
+      btnCheckGithubUpdate.innerHTML = origHtml;
+    }
+  });
+
+  btnCheckUpdate?.addEventListener('click', async () => {
+    const origHtml = btnCheckUpdate.innerHTML;
+    btnCheckUpdate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Klasör Taranıyor...';
+
+    try {
+      const res = await api.checkLocalUpdate();
+      handleUpdateCheckResult(res, false);
+    } catch (err) {
+      showToast('Yerel güncelleme kontrolünde hata: ' + err.message, 'fa-solid fa-triangle-exclamation');
+    } finally {
+      btnCheckUpdate.innerHTML = origHtml;
+    }
+  });
+
+  btnApplyUpdate?.addEventListener('click', async () => {
+    if (!pendingUpdateFilePath && !pendingGithubDownloadUrl) return;
+
+    const isCloud = !!pendingGithubDownloadUrl;
+    const confirmed = await showConfirmDialog({
+      title: isCloud ? 'GitHub Güncellemesi İndirilsin mi?' : 'Uygulama Güncellensin mi?',
+      message: isCloud
+        ? 'Yeni sürüm GitHub üzerinden indirilecek ve doğrudan eski sürümün üzerine kurulacaktır. Devam edilsin mi?'
+        : 'Voldena kapatılacak, yeni sürüm doğrudan eski sürümün üzerine kurulacak ve uygulama otomatik olarak yeniden açılacaktır. Devam edilsin mi?',
+      confirmText: isCloud ? 'Evet, İndir ve Kur' : 'Evet, Güncelle & Başlat',
+      cancelText: 'Vazgeç',
+      icon: 'fa-solid fa-download',
+      type: 'success'
+    });
+
+    if (confirmed) {
+      if (isCloud) {
+        showToast('GitHub indirmesi başlatılıyor...', 'fa-solid fa-cloud-arrow-down');
+        if (btnApplyUpdate) {
+          btnApplyUpdate.disabled = true;
+          btnApplyUpdate.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> İndiriliyor...';
+        }
+        if (githubProgressContainer) githubProgressContainer.style.display = 'block';
+
+        const result = await api.downloadAndApplyGithubUpdate(pendingGithubDownloadUrl, pendingGithubFileName);
+        if (result && !result.success) {
+          showToast('İndirme / Kurulum hatası: ' + result.error, 'fa-solid fa-circle-exclamation');
+          if (btnApplyUpdate) {
+            btnApplyUpdate.disabled = false;
+            btnApplyUpdate.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Tekrar Dene';
+          }
+        }
+      } else {
+        showToast('Güncelleme yükleme ekranı açılıyor, lütfen bekleyin...', 'fa-solid fa-arrows-rotate fa-spin');
+        if (btnApplyUpdate) {
+          btnApplyUpdate.disabled = true;
+          btnApplyUpdate.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Yükleme Ekranı Açılıyor...';
+        }
+        setTimeout(async () => {
+          const result = await api.applyLocalUpdate(pendingUpdateFilePath);
+          if (result && !result.success) {
+            showToast('Güncelleme başlatılamadı: ' + result.error, 'fa-solid fa-circle-exclamation');
+            if (btnApplyUpdate) btnApplyUpdate.disabled = false;
+          }
+        }, 300);
+      }
+    }
+  });
+
+  btnPickUpdate?.addEventListener('click', async () => {
+    const file = await api.selectUpdateFile();
+    if (file && file.filePath) {
+      handleUpdateCheckResult({
+        hasUpdate: true,
+        currentVersion: await api.getAppVersion(),
+        latestVersion: file.fileVersion,
+        filePath: file.filePath,
+        fileName: file.fileName,
+        sizeMb: file.sizeMb,
+        date: 'Seçilen Dosya'
+      }, false);
+    }
+  });
+
+  // ==========================================================================
+  // DISK CLEANER & STORAGE MANAGEMENT
+  // ==========================================================================
+  let currentSelectedDrive = 'C:';
+  let cachedDrives = [];
+
+  const switchToDiskTab = (driveLetter = null) => {
+    navItems.forEach(n => n.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+
+    const diskNav = document.querySelector('.nav-item[data-tab="disk"]');
+    const diskTab = document.getElementById('tab-disk');
+    if (diskNav) diskNav.classList.add('active');
+    if (diskTab) diskTab.classList.add('active');
+
+    loadDiskTabContent(driveLetter);
+  };
+
+  // 1. Dashboard Drives Widget
+  const loadDashboardDrives = async () => {
+    const container = document.getElementById('dashboard-drives-container');
+    if (!container) return;
+
+    try {
+      const drives = await api.getDrivesInfo();
+      cachedDrives = drives;
+      if (!drives || drives.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 11.5px; padding: 6px 0;">Sürücü bilgisi alınamadı.</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      drives.forEach(drive => {
+        const row = document.createElement('div');
+        row.className = 'dash-drive-row';
+        row.title = `${drive.name} - Tıklayarak detaylı temizlik menüsünde aç`;
+
+        let barColor = 'linear-gradient(135deg, #00f0ff 0%, #0077ff 100%)';
+        if (drive.usedPercent >= 90) {
+          barColor = 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)';
+        } else if (drive.usedPercent >= 80) {
+          barColor = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+        }
+
+        row.innerHTML = `
+          <div class="dash-drive-left">
+            <span class="dash-drive-letter">${drive.letter}</span>
+            <div class="dash-drive-bar-wrapper">
+              <div class="dash-drive-bar-fill" style="width: ${drive.usedPercent}%; background: ${barColor};"></div>
+            </div>
+          </div>
+          <span class="dash-drive-stats">${drive.freeGb} GB Boş <span style="color: var(--text-dim); font-size: 10px;">/ ${drive.totalGb} GB</span></span>
+        `;
+
+        row.addEventListener('click', () => {
+          switchToDiskTab(drive.letter);
+        });
+
+        container.appendChild(row);
+      });
+    } catch (err) {
+      container.innerHTML = '<div style="color: var(--text-muted); font-size: 11.5px; padding: 6px 0;">Disk bilgileri alınamadı.</div>';
+    }
+  };
+
+  // Dashboard quick disk clean button
+  document.getElementById('btn-quick-disk-clean')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-quick-disk-clean');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
+    btn.disabled = true;
+
+    try {
+      const res = await api.cleanJunkFiles();
+      if (!res.success) { showToast(res.message || res.error || 'İptal edildi.'); return; }
+      showToast(res.message || 'Disk çöp ve geçici dosyaları başarıyla temizlendi!', 'fa-solid fa-broom');
+      await loadDashboardDrives();
+      if (document.getElementById('tab-disk')?.classList.contains('active')) {
+        await loadDiskTabContent(currentSelectedDrive);
+      }
+    } catch (err) {
+      showToast('Disk temizleme hatası: ' + err.message, 'fa-solid fa-triangle-exclamation');
+    } finally {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('btn-open-disk-tab')?.addEventListener('click', () => {
+    switchToDiskTab();
+  });
+
+  // 2. Full Disk Tab Logic
+  const loadDiskTabContent = async (targetDrive = null) => {
+    try {
+      const drives = await api.getDrivesInfo();
+      cachedDrives = drives;
+
+      if (targetDrive) {
+        currentSelectedDrive = targetDrive;
+      } else if (!currentSelectedDrive && drives.length > 0) {
+        currentSelectedDrive = drives[0].letter;
+      }
+
+      renderDiskDrivesGrid(drives);
+      updateActiveDriveHeader();
+      await loadJunkSummary();
+      await scanLargeFilesForCurrentDrive();
+    } catch (err) {
+      console.error('Disk tab yüklenirken hata:', err);
+    }
+  };
+
+  const renderDiskDrivesGrid = (drives) => {
+    const container = document.getElementById('disk-drives-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!drives || drives.length === 0) {
+      container.innerHTML = '<div class="text-muted" style="font-size: 13px;">Takılı sabit disk bulunamadı.</div>';
+      return;
+    }
+
+    drives.forEach(d => {
+      const card = document.createElement('div');
+      card.className = `disk-drive-card ${d.letter.toUpperCase() === currentSelectedDrive.toUpperCase() ? 'active-drive-card' : ''}`;
+
+      let barColor = 'linear-gradient(135deg, #00f0ff 0%, #0077ff 100%)';
+      let statusBadge = `<span class="badge badge-low">%${d.usedPercent} Dolu</span>`;
+      if (d.usedPercent >= 90) {
+        barColor = 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)';
+        statusBadge = `<span class="badge badge-high" style="color: #fff; background: rgba(244, 63, 94, 0.25);">%${d.usedPercent} Dolu (Kritik)</span>`;
+      } else if (d.usedPercent >= 80) {
+        barColor = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+        statusBadge = `<span class="badge badge-medium">%${d.usedPercent} Dolu</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="disk-drive-card-header">
+          <div class="disk-drive-title-box">
+            <div class="disk-drive-icon">
+              <i class="fa-solid fa-hard-drive"></i>
+            </div>
+            <div>
+              <div class="disk-drive-name">${d.name}</div>
+              <div class="disk-drive-letter-badge">Sürücü ${d.letter}</div>
+            </div>
+          </div>
+          ${statusBadge}
+        </div>
+
+        <div class="disk-capacity-bar-bg">
+          <div class="disk-capacity-bar-fill" style="width: ${d.usedPercent}%; background: ${barColor};"></div>
+        </div>
+
+        <div class="disk-drive-foot">
+          <span><strong>${d.freeGb} GB</strong> Boş</span>
+          <span>${d.usedGb} GB / ${d.totalGb} GB</span>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        currentSelectedDrive = d.letter;
+        document.querySelectorAll('.disk-drive-card').forEach(c => c.classList.remove('active-drive-card'));
+        card.classList.add('active-drive-card');
+        updateActiveDriveHeader();
+        scanLargeFilesForCurrentDrive();
+      });
+
+      container.appendChild(card);
+    });
+  };
+
+  const updateActiveDriveHeader = () => {
+    const titleEl = document.getElementById('disk-active-drive-title');
+    const subEl = document.getElementById('disk-active-drive-subtitle');
+    const selected = cachedDrives.find(d => d.letter.toUpperCase() === currentSelectedDrive.toUpperCase());
+
+    if (titleEl) {
+      titleEl.innerHTML = `<i class="fa-solid fa-broom"></i> Çöp & Geçici Sistem Dosyaları (${currentSelectedDrive})`;
+    }
+    if (subEl) {
+      if (selected) {
+        subEl.textContent = `${selected.name} üzerinde geçici Windows önbelleği, hata dökümleri ve geri dönüşüm kutusu artıkları.`;
+      } else {
+        subEl.textContent = `Seçili sürücü: ${currentSelectedDrive}`;
+      }
+    }
+  };
+
+  const loadJunkSummary = async () => {
+    const container = document.getElementById('disk-junk-categories');
+    if (!container) return;
+
+    container.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; padding: 10px 0;"><i class="fa-solid fa-spinner fa-spin"></i> Çöp dosya boyutları taranıyor...</div>';
+
+    try {
+      const summary = await api.getJunkSummary();
+      container.innerHTML = '';
+
+      if (summary && summary.categories) {
+        summary.categories.forEach(cat => {
+          const item = document.createElement('div');
+          item.className = 'junk-cat-card';
+          item.innerHTML = `
+            <div class="junk-cat-icon">
+              <i class="${cat.icon}"></i>
+            </div>
+            <div class="junk-cat-info">
+              <div class="junk-cat-name">${cat.name}</div>
+              <div class="junk-cat-size">${cat.displaySize}</div>
+            </div>
+          `;
+          container.appendChild(item);
+        });
+
+        // Add Recycle bin item
+        const trashItem = document.createElement('div');
+        trashItem.className = 'junk-cat-card';
+        trashItem.innerHTML = `
+          <div class="junk-cat-icon">
+            <i class="fa-solid fa-trash-arrow-up"></i>
+          </div>
+          <div class="junk-cat-info">
+            <div class="junk-cat-name">Windows Geri Dönüşüm Kutusu</div>
+            <div class="junk-cat-size">Kapsam dışı</div>
+          </div>
+        `;
+        // Recycle Bin is deliberately outside cleanup scope.
+      }
+    } catch (e) {
+      container.innerHTML = '<div style="color: var(--text-muted); font-size: 12px;">Çöp dosya detayları alınamadı.</div>';
+    }
+  };
+
+  // Detailed junk clean button inside tab
+  const handleJunkCleaning = async (buttonId) => {
+    const btn = document.getElementById(buttonId);
+    if (!btn) return;
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Temizleniyor...';
+    btn.disabled = true;
+
+    try {
+      const res = await api.cleanJunkFiles();
+      if (!res.success) { showToast(res.message || res.error || 'İptal edildi.'); return; }
+      await showAlertDialog(
+        `Çöp ve geçici dosyalar başarıyla temizlendi!<br><br><strong>${res.message}</strong>`,
+        'Disk Temizliği Başarılı',
+        'success',
+        'fa-solid fa-check-double'
+      );
+      await loadDashboardDrives();
+      await loadDiskTabContent(currentSelectedDrive);
+    } catch (err) {
+      showToast('Disk temizleme hatası: ' + err.message, 'fa-solid fa-triangle-exclamation');
+    } finally {
+      btn.innerHTML = origText;
+      btn.disabled = false;
+    }
+  };
+
+  document.getElementById('btn-clean-junk-detailed')?.addEventListener('click', () => {
+    handleJunkCleaning('btn-clean-junk-detailed');
+  });
+  document.getElementById('btn-disk-tab-quick-clean')?.addEventListener('click', () => {
+    handleJunkCleaning('btn-disk-tab-quick-clean');
+  });
+
+  // 3. Large Files Scanner (Always sorted descending by size)
+  const scanLargeFilesForCurrentDrive = async () => {
+    const container = document.getElementById('large-files-container');
+    const selectMinSize = document.getElementById('select-large-file-min-size');
+    const minMb = parseInt(selectMinSize?.value || '100', 10);
+
+    if (!container) return;
+    container.innerHTML = `
+      <div style="padding: 34px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary); margin-bottom: 10px; display: block;"></i>
+        <span><strong>${currentSelectedDrive}</strong> sürücüsündeki büyük dosyalar taranıyor (${minMb} MB ve üzeri)...</span>
+      </div>
+    `;
+
+    try {
+      const files = await api.scanLargeFiles(currentSelectedDrive, minMb);
+      container.innerHTML = '';
+
+      if (!files || files.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 38px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+            <i class="fa-solid fa-circle-check" style="font-size: 26px; color: var(--success); margin-bottom: 8px; display: block;"></i>
+            <span>Bu sürücüde ${minMb} MB ve üzeri yer kaplayan dosya bulunamadı. Diskiniz gayet temiz!</span>
+          </div>
+        `;
+        return;
+      }
+
+      files.forEach(file => {
+        const row = document.createElement('div');
+        row.className = 'large-file-row';
+
+        row.innerHTML = `
+          <div class="large-file-left">
+            <div class="large-file-icon-box">
+              <i class="${file.icon}"></i>
+            </div>
+            <div class="large-file-details">
+              <div class="large-file-name" title="${file.name}">${file.name}</div>
+              <div class="large-file-path" title="${file.path}">${file.path}</div>
+            </div>
+          </div>
+          <div class="large-file-right">
+            <span class="chip-sm">${file.typeBadge || 'Dosya'}</span>
+            ${file.date ? `<span class="large-file-date">${file.date}</span>` : ''}
+            <span class="large-file-size-badge">${file.displaySize}</span>
+            <button class="btn btn-secondary large-file-btn btn-open-folder" title="Dosya Gezgini'nde Konumu Göster">
+              <i class="fa-solid fa-folder-open"></i>
+            </button>
+            <button class="btn btn-danger large-file-btn btn-delete-file" title="Bu Dosyayı Kalıcı Olarak Sil">
+              <i class="fa-solid fa-trash"></i> Sil
+            </button>
+          </div>
+        `;
+
+        row.querySelector('.btn-open-folder')?.addEventListener('click', () => {
+          api.showItemInFolder(file.path);
+        });
+
+        row.querySelector('.btn-delete-file')?.addEventListener('click', async () => {
+          const confirmed = await showConfirmDialog({
+            title: 'Dosyayı Silmek İstediğinize Emin misiniz?',
+            message: `<strong>${escapeHTML(file.name)}</strong> (${file.displaySize})<br><br>Bu dosya geri dönüşüm kutusuna taşınacaktır. Devam etmek istiyor musunuz?`,
+            icon: 'fa-solid fa-triangle-exclamation',
+            confirmText: 'Evet, Dosyayı Sil',
+            cancelText: 'Vazgeç',
+            type: 'danger'
+          });
+
+          if (confirmed) {
+            try {
+              const res = await api.deleteTargetFile(file.path);
+              if (res && res.success) {
+                showToast(`Dosya silindi (${file.displaySize} alan açıldı)!`, 'fa-solid fa-trash');
+                row.remove();
+                await loadDashboardDrives();
+                const updatedDrives = await api.getDrivesInfo();
+                renderDiskDrivesGrid(updatedDrives);
+              } else {
+                showToast('Dosya silinemedi: ' + (res?.error || 'Dosya kullanımda olabilir.'), 'fa-solid fa-triangle-exclamation');
+              }
+            } catch (err) {
+              showToast('Silme hatası: ' + err.message, 'fa-solid fa-triangle-exclamation');
+            }
+          }
+        });
+
+        container.appendChild(row);
+      });
+    } catch (err) {
+      container.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--danger); font-size: 13px;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Büyük dosyalar taranırken hata: ${err.message}
+        </div>
+      `;
+    }
+  };
+
+  document.getElementById('btn-scan-large-files')?.addEventListener('click', () => {
+    scanLargeFilesForCurrentDrive();
+  });
+  document.getElementById('select-large-file-min-size')?.addEventListener('change', () => {
+    scanLargeFilesForCurrentDrive();
+  });
+
+  // Initial dashboard drives load
+  loadDashboardDrives();
+  document.body.dataset.ready='true';
 });

@@ -1,17 +1,13 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, Notification, nativeImage, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { finishGameSession } = require('./lib/app-lifecycle');
-
-// Keep Voldena itself off the hardware graphics path during game startup.
-app.disableHardwareAcceleration();
 const { execSync } = require('child_process');
 const RuleStore = require('./lib/rule-store');
 const RamOptimizer = require('./lib/ram-optimizer');
 const ProcessMonitor = require('./lib/process-monitor');
 const AppScanner = require('./lib/app-scanner');
 const GameDetector = require('./lib/game-detector');
-const UpdateManager = require('./lib/update-manager');
+const DiskCleaner = require('./lib/disk-cleaner');
 
 // Global error handlers to prevent silent crashes
 process.on('uncaughtException', (err) => {
@@ -24,11 +20,11 @@ process.on('unhandledRejection', (reason) => {
 function isRunningAsAdmin() {
   if (process.platform !== 'win32') return true;
   try {
-    execSync('fltmc', { stdio: 'ignore', windowsHide: true, timeout: 5000 });
+    execSync('fltmc', { stdio: 'ignore', windowsHide: true, timeout: 3000 });
     return true;
   } catch (e) {
     try {
-      execSync('net session', { stdio: 'ignore', windowsHide: true, timeout: 5000 });
+      execSync('net session', { stdio: 'ignore', windowsHide: true, timeout: 3000 });
       return true;
     } catch (e2) {
       return false;
@@ -36,12 +32,24 @@ function isRunningAsAdmin() {
   }
 }
 
+function setupWindowsAutoStart(enable) {
+  if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_FILE) throw new Error('Başlangıç kaydı için kurulu setup sürümünü kullanın.');
+  // Remove the old elevated task before creating exactly one standard Run entry.
+  const { execFileSync } = require('child_process');
+  const script = "$t=Get-ScheduledTask -TaskName 'VoldenaGameBooster' -ErrorAction SilentlyContinue; if($t){Unregister-ScheduledTask -TaskName 'VoldenaGameBooster' -Confirm:$false -ErrorAction Stop}";
+  execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{windowsHide:true,timeout:8000});
+  app.setLoginItemSettings({ openAtLogin: enable, path: process.execPath, args: ['--startup'] });
+  if (app.getLoginItemSettings({path:process.execPath,args:['--startup']}).openAtLogin !== enable) throw new Error('Windows başlangıç kaydı doğrulanamadı.');
+}
+
 // Single Instance Lock
+app.disableHardwareAcceleration();
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
+    if (argv.includes('--startup') || argv.includes('--hidden')) return;
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       if (!mainWindow.isVisible()) mainWindow.show();
@@ -50,19 +58,34 @@ if (!gotTheLock) {
   });
 }
 
+// Request admin elevation if in dev mode
+
+
 let mainWindow = null;
 let tray = null;
 let ruleStore = null;
 let gameDetector = null;
 let processMonitor = null;
 let memoryInterval = null;
-let updateManager = null;
-let updateCheckTimer = null;
+let updaterBridge = null;
+const testMode = process.argv.includes('--voldena-safe-test');
+if (testMode) {
+  const arg = process.argv.find(a => a.startsWith('--test-data='));
+  if (!arg || !path.isAbsolute(arg.slice(12))) throw new Error('Test data path required');
+  app.setPath('userData', arg.slice(12));
+}
+function quitFully(report) {
+  require('./lib/app-lifecycle').finishGameSession({app, monitor: processMonitor, tray,
+    clearTimers: () => clearInterval(memoryInterval),
+    saveReport: data => fs.writeFileSync(path.join(app.getPath('userData'),'last-optimization.json'),JSON.stringify(data,null,2))},report);
+}
+app.on('before-quit', () => { app.isQuitting = true; processMonitor?.stop(); });
 
 const logoPath = path.join(__dirname, 'src', 'assets', 'logo.png');
 
 function createWindow() {
   const appIcon = nativeImage.createFromPath(logoPath);
+  const isHidden = process.argv.includes('--hidden') || process.argv.includes('--startup');
 
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -74,6 +97,8 @@ function createWindow() {
     frame: false,
     transparent: false,
     backgroundColor: '#0a0e17',
+    show: !isHidden,
+    focusable: !testMode,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -82,6 +107,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (processMonitor) {
+      mainWindow.webContents.send('status-changed', processMonitor.getStatus());
+    }
+  });
 
   mainWindow.on('close', (event) => {
     const settings = ruleStore.getSettings();
@@ -125,7 +156,7 @@ function createTray() {
         }
       },
       {
-        label: 'RAM Yönetimi (Temizleme Devre Dışı)',
+        label: 'Hızlı RAM Temizle',
         click: async () => {
           const res = await RamOptimizer.trimWorkingSets();
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -142,6 +173,7 @@ function createTray() {
         label: 'Çıkış Yap',
         click: () => {
           app.isQuitting = true;
+
           app.quit();
         }
       }
@@ -165,81 +197,23 @@ app.whenReady().then(() => {
   ruleStore = new RuleStore();
   gameDetector = new GameDetector(ruleStore);
 
-  // Background auto-scan for game libraries on startup
-  gameDetector.scanAllGameLibraries().then(() => {
+  // Background auto-scan; safe tests never inspect personal game libraries.
+  if (!testMode) gameDetector.scanAllGameLibraries().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('games-scanned', gameDetector.discoveredGames);
     }
   }).catch(e => console.error('Oyun kütüphaneleri tarama hatası:', e));
 
-  processMonitor = new ProcessMonitor(ruleStore, gameDetector, (state) => {
-    if (ruleStore.getSettings().exitAfterOptimization !== false && state.status === 'active') return;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('status-changed', state);
-    }
-    if (updateTrayMenu) updateTrayMenu();
-
-    const settings = ruleStore.getSettings();
-    if (Notification.isSupported() && settings.notifyOnAction) {
-      if (state.status === 'active') {
-        new Notification({
-          title: `Voldena - ${state.activeRule.alias || state.activeRule.name} Başladı`,
-          body: `Oyun modu etkin. Seçili uygulamalara normal kapatma isteği gönderildi.`,
-          icon: logoPath
-        }).show();
-      } else if (state.status === 'idle' && state.previousRule) {
-        new Notification({
-          title: 'Voldena - Oyun Kapandı',
-          body: `${state.previousRule.alias || state.previousRule.name} kapandı. Kapatılan uygulamalar geri açıldı.`,
-          icon: logoPath
-        }).show();
-      }
-    }
-  }, report => finishGameSession({
-    app, monitor: processMonitor, tray,
-    clearTimers: () => {
-      if (memoryInterval) clearInterval(memoryInterval);
-      if (updateCheckTimer) clearTimeout(updateCheckTimer);
-      globalShortcut.unregisterAll();
-    },
-    saveReport: result => fs.writeFileSync(path.join(app.getPath('userData'), 'last-optimization.json'),
-      JSON.stringify({ completedAt: new Date().toISOString(), version: app.getVersion(), ...result }, null, 2))
-  }, report));
+  processMonitor = new ProcessMonitor(ruleStore, gameDetector, state => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-changed',state);
+    if (tray) updateTrayMenu();
+  }, quitFully);
 
   const updateTrayMenu = createTray();
 
-  processMonitor.start();
+  if (!testMode) processMonitor.start();
 
   createWindow();
-
-  const updateSupported = app.isPackaged && process.platform === 'win32' &&
-    !process.env.PORTABLE_EXECUTABLE_FILE;
-  const updateLogger = Object.fromEntries(['info', 'warn', 'error', 'debug'].map(level => [level, (...args) => {
-    try {
-      fs.appendFileSync(path.join(app.getPath('userData'), 'update.log'),
-        `${new Date().toISOString()} [${level}] ${args.map(String).join(' ')}\n`);
-    } catch (_) { /* A logging failure must not interrupt updates. */ }
-  }]));
-  const updater = updateSupported ? require('electron-updater').autoUpdater : null;
-  if (updater) updater.logger = updateLogger;
-  updateManager = new UpdateManager({
-    app,
-    updater,
-    logger: updateLogger,
-    supported: updateSupported,
-    notify: state => {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', state);
-    },
-    beforeInstall: () => {
-      if (processMonitor.getStatus().activeRuleId) return false;
-      return true;
-    },
-    prepareToQuit: () => {
-      processMonitor.stop();
-      if (tray && !tray.isDestroyed()) tray.destroy();
-    }
-  });
-  if (updateSupported) updateCheckTimer = setTimeout(() => updateManager.check(), 10000);
 
   // Register Emergency Hotkey to restore Explorer
   globalShortcut.register('CommandOrControl+Alt+R', () => {
@@ -247,23 +221,42 @@ app.whenReady().then(() => {
     RamOptimizer.startExplorer();
   });
 
-  // Handle Memory Statistics Broadcast (Live every 1.5 seconds)
-  memoryInterval = setInterval(() => {
+  // Handle Live Hardware Statistics Broadcast (RAM + CPU every 1.5 seconds)
+  let hardwareBusy = false;
+  memoryInterval = setInterval(async () => {
+    if (hardwareBusy) return;
+    hardwareBusy = true;
+    try {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      const stats = RamOptimizer.getSystemMemoryStats();
+      const stats = await RamOptimizer.getSystemHardwareStats();
       mainWindow.webContents.send('memory-update', stats);
     }
+    } finally { hardwareBusy = false; }
   }, 1500);
 
-  // Apply Windows startup settings
-  const settings = ruleStore.getSettings();
-  try {
-    app.setLoginItemSettings({
-      openAtLogin: !!settings.autoStartOnBoot,
-      path: app.getPath('exe'),
-      args: ['--hidden']
+  // Startup registrations are changed only by an explicit setting change.
+  if (testMode) {
+    const resultPath = path.join(app.getPath('userData'),'smoke.json');
+    const errors=[];
+    mainWindow.webContents.on('console-message',(_event,level,message)=>{if(level>=3)errors.push(message);});
+    mainWindow.webContents.on('did-finish-load',async () => {
+      try {
+        await new Promise(resolve=>setTimeout(resolve,4000));
+        const ui = await mainWindow.webContents.executeJavaScript(`({cpu:!!document.getElementById('val-cpu-percent-text'),cpuText:document.getElementById('val-cpu-percent-text')?.textContent,ram:!!document.getElementById('val-ram-used'),disk:!!document.getElementById('tab-disk'),autoExit:!!document.getElementById('setting-auto-exit'),diskCount:document.querySelectorAll('#tab-disk').length,ready:document.body.dataset.ready})`);
+        let startupTest=null;
+        if (process.argv.includes('--verify-startup')) {
+          setupWindowsAutoStart(true);
+          const on=app.getLoginItemSettings({path:process.execPath,args:['--startup']}).openAtLogin;
+          setupWindowsAutoStart(false);
+          const off=app.getLoginItemSettings({path:process.execPath,args:['--startup']}).openAtLogin;
+          startupTest={on,off};
+        }
+        fs.writeFileSync(path.join(app.getPath('userData'),'preview.png'),(await mainWindow.webContents.capturePage()).toPNG());
+        fs.writeFileSync(resultPath,JSON.stringify({version:app.getVersion(),exe:process.execPath,hidden:!mainWindow.isVisible(),ui,errors,startupTest,hardware:await RamOptimizer.getSystemHardwareStats(),drives:await DiskCleaner.getDrivesInfo()}));
+      } catch(e) { fs.writeFileSync(resultPath,JSON.stringify({error:e.message})); }
+      setTimeout(()=>quitFully({test:true}),1000);
     });
-  } catch (e) {}
+  }
 
   // Rule Handlers
   ipcMain.handle('get-rules', () => ruleStore.getRules());
@@ -274,18 +267,41 @@ app.whenReady().then(() => {
   // Settings Handlers
   ipcMain.handle('get-settings', () => ruleStore.getSettings());
   ipcMain.handle('update-settings', (_, newSettings) => {
+    if ('autoStartOnBoot' in newSettings) setupWindowsAutoStart(!!newSettings.autoStartOnBoot);
     const updated = ruleStore.updateSettings(newSettings);
-    if ('autoStartOnBoot' in newSettings) {
-      try {
-        app.setLoginItemSettings({
-          openAtLogin: !!newSettings.autoStartOnBoot,
-          path: app.getPath('exe'),
-          args: ['--hidden']
-        });
-      } catch (e) {}
-    }
+    processMonitor.settingsChanged();
     return updated;
   });
+
+  // Manual Boost & Detection Handlers
+  ipcMain.handle('manual-detect-and-boost', async () => {
+    const check = await processMonitor.detectRunningGameNow();
+    if (check.isRunning && check.rule) {
+      const boostResult = await processMonitor.triggerRuleManually(check.rule);
+      return {
+        detected: true,
+        rule: check.rule,
+        closedCount: boostResult.closedCount
+      };
+    }
+    return {
+      detected: false,
+      rules: ruleStore.getRules().filter(r => r.enabled)
+    };
+  });
+
+  ipcMain.handle('force-apply-rule', async (_, ruleId) => {
+    return await processMonitor.triggerRuleManually(ruleId, true);
+  });
+
+  updaterBridge = require('./lib/update-bridge')({ app, mainWindow, processMonitor, quit: () => quitFully({update:true}) });
+  ipcMain.handle('get-app-version', () => app.getVersion());
+  ipcMain.handle('get-install-info', () => updaterBridge.installInfo());
+  ipcMain.handle('check-local-update', () => updaterBridge.checkLocal());
+  ipcMain.handle('apply-local-update', (_, file) => updaterBridge.applyLocal(file));
+  ipcMain.handle('select-update-file', () => updaterBridge.selectLocal(dialog));
+  ipcMain.handle('check-github-update', () => updaterBridge.check());
+  ipcMain.handle('download-and-apply-github-update', () => updaterBridge.downloadAndInstall());
 
   // Protected Apps Handlers
   ipcMain.handle('get-protected-apps', () => ruleStore.getProtectedApps());
@@ -300,18 +316,7 @@ app.whenReady().then(() => {
   ipcMain.handle('save-verified-games', (_, games) => ruleStore.updateVerifiedGames(games));
 
   // Memory & Optimizer Handlers
-  ipcMain.handle('get-last-optimization-report', () => {
-    try { return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'last-optimization.json'), 'utf8')); }
-    catch (_) { return null; }
-  });
-
-  ipcMain.handle('get-update-status', () => updateManager.state);
-  ipcMain.handle('check-for-updates', () => updateManager.check());
-  ipcMain.handle('download-update', () => updateManager.download());
-  ipcMain.handle('install-update', () => updateManager.install());
-  ipcMain.handle('open-release-page', () => shell.openExternal('https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/latest'));
-
-  ipcMain.handle('get-memory-stats', () => RamOptimizer.getSystemMemoryStats());
+  ipcMain.handle('get-memory-stats', () => RamOptimizer.getSystemHardwareStats());
   ipcMain.handle('get-detailed-processes', () => RamOptimizer.getDetailedProcesses());
 
   ipcMain.handle('optimize-ram', () => RamOptimizer.trimWorkingSets());
@@ -319,7 +324,7 @@ app.whenReady().then(() => {
   ipcMain.handle('stop-explorer', () => RamOptimizer.stopExplorer());
   ipcMain.handle('start-explorer', () => RamOptimizer.startExplorer());
   ipcMain.handle('get-running-processes', async () => {
-    const set = await processMonitor.fetchRunningProcesses() || new Set();
+    const set = await processMonitor.fetchRunningProcesses();
     return Array.from(set).sort();
   });
 
@@ -327,7 +332,7 @@ app.whenReady().then(() => {
   ipcMain.handle('get-all-apps', () => AppScanner.getAllAppsDataset());
   ipcMain.handle('get-popular-apps', () => AppScanner.getPopularApps());
   ipcMain.handle('get-installed-apps', (_, forceRefresh) => AppScanner.getInstalledApps(forceRefresh));
-  ipcMain.handle('get-running-apps', () => AppScanner.getRunningProcesses({ throwOnError: true }));
+  ipcMain.handle('get-running-apps', () => AppScanner.getRunningProcesses());
   ipcMain.handle('resolve-exe-path', (_, nameOrExe) => AppScanner.resolveExecutablePath(nameOrExe));
   
   // File & Folder Dialogs
@@ -359,6 +364,34 @@ app.whenReady().then(() => {
 
   ipcMain.handle('is-admin', () => isRunningAsAdmin());
   ipcMain.handle('get-status', () => processMonitor.getStatus());
+  ipcMain.handle('get-hardware-stats', () => RamOptimizer.getSystemHardwareStats());
+  ipcMain.handle('boost-computer-now', () => RamOptimizer.boostComputerNow());
+
+  // Disk & Storage Cleaner Endpoints
+  ipcMain.handle('get-drives-info', () => DiskCleaner.getDrivesInfo());
+  ipcMain.handle('get-junk-summary', () => DiskCleaner.getJunkSummary());
+  ipcMain.handle('clean-junk-files', async () => {
+    const preview = await DiskCleaner.getJunkSummary();
+    const answer = await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Gösterilen dosyaları temizle'],defaultId:0,cancelId:0,
+      title:'Temizlik kapsamı', message: preview.displaySize + ' — yalnızca 7 günden eski kullanıcı Temp ve CrashDumps dosyaları.',
+      detail:preview.categories.map(c=>c.name+': '+c.displaySize).join('\n')+'\nKişisel belgeler, OneDrive, Windows, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
+    if(answer.response !== 1) return {success:false,canceled:true,message:'Temizlik iptal edildi.'};
+    return DiskCleaner.cleanJunkFiles(preview.token);
+  });
+  ipcMain.handle('scan-large-files', (_, driveLetter, minSizeMb) => DiskCleaner.scanLargeFiles(driveLetter, minSizeMb));
+  ipcMain.handle('delete-target-file', async (_, filePath) => {
+    if (!DiskCleaner.scannedFiles.has(filePath)) return {success:false,error:'Önce dosyayı tarayın.'};
+    const answer = await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Geri dönüşüm kutusuna taşı'],defaultId:0,cancelId:0,message:filePath});
+    if(answer.response!==1) return {success:false,error:'İptal edildi.'};
+    return DiskCleaner.deleteTargetFile(filePath, shell);
+  });
+  ipcMain.handle('show-item-in-folder', (_, filePath) => {
+    if (filePath && fs.existsSync(filePath)) {
+      shell.showItemInFolder(filePath);
+      return true;
+    }
+    return false;
+  });
 
   // Window Controls IPC
   ipcMain.on('window-minimize', () => mainWindow.minimize());
@@ -380,7 +413,6 @@ app.on('window-all-closed', (event) => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  if (updateCheckTimer) clearTimeout(updateCheckTimer);
   if (memoryInterval) clearInterval(memoryInterval);
   if (processMonitor) processMonitor.stop();
 });

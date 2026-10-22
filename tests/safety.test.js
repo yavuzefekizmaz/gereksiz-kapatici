@@ -223,7 +223,7 @@ test('partially closed multiple instances are reported as partial, not complete'
   assert.equal(result.failed[0], 'onedrive.exe');
 });
 
-test('Voldena completion waits for all closing attempts and stops monitoring', async () => {
+test('manual profile completion never immediately exits the application', async () => {
   const original = RamOptimizer.killProcesses;
   let resolve;
   const events = [];
@@ -239,7 +239,8 @@ test('Voldena completion waits for all closing attempts and stops monitoring', a
     assert.deepEqual(events, []);
     resolve({ killed: [], failed: ['anydesk.exe'], closedApps: [], skipped: [], details: [] });
     await pending;
-    assert.deepEqual(events, ['status', 'stop', 'quit']);
+    assert.deepEqual(events, []);
+    assert.equal(monitor.exitDeadline, null);
   } finally { RamOptimizer.killProcesses = original; }
 });
 

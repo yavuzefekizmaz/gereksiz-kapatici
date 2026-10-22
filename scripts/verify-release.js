@@ -21,9 +21,11 @@ const archive = path.join(dist, 'win-unpacked/resources/app.asar');
 const packedPackage = JSON.parse(asar.extractFile(archive, 'package.json').toString());
 assert.equal(packedPackage.version, pkg.version);
 assert.ok(packedPackage.dependencies['electron-updater']);
-for (const filename of ['main.js', 'preload.js', 'lib/ram-optimizer.js', 'lib/process-monitor.js', 'lib/update-manager.js', 'lib/update-installer.js', 'lib/app-lifecycle.js', 'src/app-picker-data.js', 'src/renderer.js', 'src/index.html']) {
+const walk=dir=>fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(item=>item.isDirectory()?walk(`${dir}/${item.name}`):[`${dir}/${item.name}`]);
+for (const filename of ['main.js', 'preload.js', ...walk('lib'),...walk('src')]) {
   assert.deepEqual(asar.extractFile(archive, filename), fs.readFileSync(path.join(root, filename)), `Packed file differs: ${filename}`);
 }
+assert.ok(!asar.listPackage(archive).some(name=>/voldena_config\.json|update\.log|\.env$|backup/i.test(name)),'Private files must not be packed');
 const updateConfig = yaml.load(fs.readFileSync(path.join(dist, 'win-unpacked/resources/app-update.yml'), 'utf8'));
 assert.equal(updateConfig.provider, 'github');
 assert.equal(updateConfig.owner, 'yavuzefekizmaz');

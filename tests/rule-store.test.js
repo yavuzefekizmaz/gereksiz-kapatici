@@ -8,7 +8,7 @@ function loadStore(data) {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../lib/rule-store.js'), 'utf8'), {
     module, exports: module.exports, process, console,
     require: name => name === 'electron' ? { app: { getPath: () => '/fake-user-data' } } : name === 'fs' ? {
-      existsSync: () => data != null, readFileSync: () => JSON.stringify(data), writeFileSync: () => {}
+      existsSync: () => data != null, readFileSync: () => JSON.stringify(data), writeFileSync: () => {}, renameSync: () => {}
     } : require(name)
   });
   return new module.exports();
@@ -23,10 +23,10 @@ test('upgrade enables exit and disables restore; only selected legacy protection
   assert.deepEqual(Array.from(store.getProtectedApps()), ['OneDrive.exe', 'code.exe', 'steam.exe']);
 });
 
-test('saving a OneDrive close selection resolves the old default protection conflict', () => {
+test('new close selections never silently remove explicit user protection', () => {
   const store = loadStore({ settings: {}, protectedApps: ['OneDrive.exe', 'code.exe'], rules: [] });
   store.addRule({ closeTargets: ['onedrive.exe'] });
-  assert.deepEqual(Array.from(store.getProtectedApps()), ['code.exe']);
+  assert.deepEqual(Array.from(store.getProtectedApps()), ['OneDrive.exe', 'code.exe']);
 });
 
 test('auto-restore cannot stay enabled while automatic exit is on', () => {
@@ -35,4 +35,12 @@ test('auto-restore cannot stay enabled while automatic exit is on', () => {
   assert.equal(store.getSettings().autoRestoreOnExit, false);
   store.updateSettings({ exitAfterOptimization: false, autoRestoreOnExit: true });
   assert.equal(store.getSettings().autoRestoreOnExit, true);
+});
+
+test('unknown fields and newer schemas are preserved and never overwritten',()=>{
+  const original={schemaVersion:9,customFutureValue:{keep:true},settings:{exitAfterOptimization:false},rules:[{id:'keep'}]};
+  const store=loadStore(original);
+  assert.equal(store.data.customFutureValue.keep,true);
+  assert.equal(store.getRules()[0].id,'keep');
+  assert.throws(()=>store.updateSettings({startMinimized:false}),/Daha yeni/);
 });

@@ -1,16 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('voldenaAPI', {
-  // GitHub release updates
-  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
-  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
-  openReleasePage: () => ipcRenderer.invoke('open-release-page'),
-  onUpdateStatus: callback => {
-    ipcRenderer.on('update-status', (_event, state) => callback(state));
-  },
-
   // Rules
   getRules: () => ipcRenderer.invoke('get-rules'),
   addRule: (rule) => ipcRenderer.invoke('add-rule', rule),
@@ -51,12 +41,34 @@ contextBridge.exposeInMainWorld('voldenaAPI', {
   getRunningProcesses: () => ipcRenderer.invoke('get-running-processes'),
   resolveExePath: (nameOrExe) => ipcRenderer.invoke('resolve-exe-path', nameOrExe),
   
-  getLastOptimizationReport: () => ipcRenderer.invoke('get-last-optimization-report'),
-
   // Status & Dialogs
   getStatus: () => ipcRenderer.invoke('get-status'),
   isAdmin: () => ipcRenderer.invoke('is-admin'),
   selectFile: () => ipcRenderer.invoke('select-file'),
+  manualDetectAndBoost: () => ipcRenderer.invoke('manual-detect-and-boost'),
+  forceApplyRule: (ruleId) => ipcRenderer.invoke('force-apply-rule', ruleId),
+
+  // Local & GitHub Updater
+  getInstallInfo: () => ipcRenderer.invoke('get-install-info'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkLocalUpdate: () => ipcRenderer.invoke('check-local-update'),
+  applyLocalUpdate: (filePath) => ipcRenderer.invoke('apply-local-update', filePath),
+  selectUpdateFile: () => ipcRenderer.invoke('select-update-file'),
+  checkGithubUpdate: () => ipcRenderer.invoke('check-github-update'),
+  downloadAndApplyGithubUpdate: (downloadUrl, fileName) => ipcRenderer.invoke('download-and-apply-github-update', downloadUrl, fileName),
+  onGithubUpdateProgress: (callback) => {
+    ipcRenderer.on('github-update-progress', (event, data) => callback(data));
+  },
+
+  // Hardware & Disk Cleaner
+  getHardwareStats: () => ipcRenderer.invoke('get-hardware-stats'),
+  boostComputer: () => ipcRenderer.invoke('boost-computer-now'),
+  getDrivesInfo: () => ipcRenderer.invoke('get-drives-info'),
+  getJunkSummary: () => ipcRenderer.invoke('get-junk-summary'),
+  cleanJunkFiles: () => ipcRenderer.invoke('clean-junk-files'),
+  scanLargeFiles: (drive, minSizeMb) => ipcRenderer.invoke('scan-large-files', drive, minSizeMb),
+  deleteTargetFile: (filePath) => ipcRenderer.invoke('delete-target-file', filePath),
+  showItemInFolder: (filePath) => ipcRenderer.invoke('show-item-in-folder', filePath),
 
   // Window Controls
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
