@@ -103,7 +103,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: !testMode
     }
   });
 
@@ -253,7 +254,11 @@ app.whenReady().then(() => {
           await new Promise(resolve=>setTimeout(resolve,500));
         }
         await new Promise(resolve=>setTimeout(resolve,1700));
-        const ui = await mainWindow.webContents.executeJavaScript(`({cpu:!!document.getElementById('val-cpu-percent-text'),cpuText:document.getElementById('val-cpu-percent-text')?.textContent,ram:!!document.getElementById('val-ram-used'),disk:!!document.getElementById('tab-disk'),autoExit:!!document.getElementById('setting-auto-exit'),diskCount:document.querySelectorAll('#tab-disk').length,ready:document.body.dataset.ready})`);
+        if (process.argv.includes('--preview-cleanup')) {
+          await mainWindow.webContents.executeJavaScript('void window.openCleanupPreview()');
+          await new Promise(resolve=>setTimeout(resolve,1500));
+        }
+        const ui = await mainWindow.webContents.executeJavaScript(`({cpu:!!document.getElementById('val-cpu-percent-text'),cpuText:document.getElementById('val-cpu-percent-text')?.textContent,ram:!!document.getElementById('val-ram-used'),disk:!!document.getElementById('tab-disk'),autoExit:!!document.getElementById('setting-auto-exit'),diskCount:document.querySelectorAll('#tab-disk').length,ready:document.body.dataset.ready,cleanupActive:document.getElementById('modal-cleanup').classList.contains('active'),cleanupOpacity:getComputedStyle(document.getElementById('modal-cleanup')).opacity})`);
         let startupTest=null;
         if (process.argv.includes('--verify-startup')) {
           setupWindowsAutoStart(true);

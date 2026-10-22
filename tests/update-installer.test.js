@@ -52,3 +52,20 @@ test('asynchronous Windows installer launch failure is returned to the applicati
     queueMicrotask(() => child.emit('error', new Error('EACCES'))); return child;
   }), /EACCES/);
 });
+
+test('machine scope remains explicit and /D stays last; watchdog launch is confirmed',async t=>{
+  const info=await fixture(t);info.version='1.3.0';const calls=[];
+  const exe=path.join(os.tmpdir(),'Installed App','Voldena.exe');
+  await launchUpdateInstaller(info,exe,(file,args,options)=>{
+    calls.push({file,args,options});const child=new EventEmitter();child.unref=()=>{};queueMicrotask(()=>child.emit('spawn'));return child;
+  },{allUsers:true,reportPath:path.join(os.tmpdir(),'update-result-test.json')});
+  assert.equal(calls.length,2);assert.equal(calls[0].args.at(-1),`/D=${path.dirname(exe)}`);
+  assert.ok(calls[0].args.includes('/allusers'));assert.equal(calls[1].file,'powershell.exe');
+  assert.equal(calls[1].options.windowsHide,true);
+  const script=Buffer.from(calls[1].args.at(-1),'base64').toString('utf16le');
+  assert.match(script,/installed-and-restarted/);assert.match(script,/installation-canceled-or-failed/);
+  if(process.platform==='win32'){
+    const parser=`$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseInput([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('${calls[1].args.at(-1)}')),[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|% Message;exit 1}`;
+    require('child_process').execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(parser,'utf16le').toString('base64')],{windowsHide:true,timeout:10000});
+  }
+});

@@ -61,3 +61,10 @@ test('exit disabled, failed polls and updates cannot cause a blind exit',async()
 test('game disappears at final validation without another poll: no exit',async()=>{
   const f=fixture();await f.monitor.tick();f.setRunning(['game.exe']);await f.monitor.tick();f.setRunning([]);await f.advance(60000);assert.equal(f.quits(),0);
 });
+test('baseline instance cannot keep a newer instance countdown alive after the newer one exits',async()=>{
+  const f=fixture();f.setRows([{name:'game.exe',id:'baseline'}]);await f.monitor.tick();
+  const running=new Set(['game.exe']);running.identities=new Map([['game.exe',['baseline','new']]]);
+  f.monitor.fetchRunningProcesses=async()=>running;await f.monitor.tick();assert.equal(f.count(),1);
+  running.identities.set('game.exe',['baseline']);await f.monitor.tick();assert.equal(f.timers.size,0);
+  await f.advance(60000);assert.equal(f.quits(),0);
+});
