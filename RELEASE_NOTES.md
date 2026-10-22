@@ -1,4 +1,6 @@
-# Voldena 1.3.0
+# Voldena 1.3.1
+
+Adds a regression fix so Steam-installed Wallpaper Engine and its WinRT helpers do not trigger automatic game profiles or the game exit countdown. Existing explicitly configured user profiles remain intact.
 
 Recovered the advanced local 1.2.0 interface and connected its real CPU, RAM, GPU and storage panels. Its original source was verified against the preserved local package. Profiles, companion applications, protected applications, disk inspection and GitHub/local/manual update controls remain available.
 
