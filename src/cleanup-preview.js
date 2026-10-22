@@ -6,6 +6,8 @@
     const list=document.getElementById('cleanup-files'),summary=document.getElementById('cleanup-summary');
     const start=document.getElementById('cleanup-start'),close=document.getElementById('cleanup-close');
     modal.classList.add('active');start.disabled=true;
+    start.textContent='Listedeki geçici dosyaları temizle';close.textContent='Vazgeç';close.disabled=false;
+    document.getElementById('cleanup-disk-result').textContent='';
     summary.textContent='Dosyalar kontrol ediliyor… Hiçbir dosya silinmedi.';list.replaceChildren();
     let preview;
     try {

@@ -23,7 +23,7 @@ assert.equal(packedPackage.version, pkg.version);
 assert.ok(packedPackage.dependencies['electron-updater']);
 const walk=dir=>fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(item=>item.isDirectory()?walk(`${dir}/${item.name}`):[`${dir}/${item.name}`]);
 for (const filename of ['main.js', 'preload.js', ...walk('lib'),...walk('src')]) {
-  assert.deepEqual(asar.extractFile(archive, filename), fs.readFileSync(path.join(root, filename)), `Packed file differs: ${filename}`);
+  assert.ok(asar.extractFile(archive, path.normalize(filename)).equals(fs.readFileSync(path.join(root, filename))), `Packed file differs: ${filename}`);
 }
 assert.ok(!asar.listPackage(archive).some(name=>/voldena_config\.json|update\.log|\.env$|backup/i.test(name)),'Private files must not be packed');
 const updateConfig = yaml.load(fs.readFileSync(path.join(dist, 'win-unpacked/resources/app-update.yml'), 'utf8'));

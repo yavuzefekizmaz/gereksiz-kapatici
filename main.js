@@ -36,8 +36,9 @@ function setupWindowsAutoStart(enable) {
   if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_FILE) throw new Error('Başlangıç kaydı için kurulu setup sürümünü kullanın.');
   // Remove the old elevated task before creating exactly one standard Run entry.
   const { execFileSync } = require('child_process');
-  const script = "$t=Get-ScheduledTask -TaskName 'VoldenaGameBooster' -ErrorAction SilentlyContinue; if($t){Unregister-ScheduledTask -TaskName 'VoldenaGameBooster' -Confirm:$false -ErrorAction Stop}";
-  execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{windowsHide:true,timeout:8000});
+  const script = "$ProgressPreference='SilentlyContinue'; try { $t=Get-ScheduledTask -TaskName 'VoldenaGameBooster' -ErrorAction SilentlyContinue; if($t){Unregister-ScheduledTask -TaskName 'VoldenaGameBooster' -Confirm:$false -ErrorAction Stop}; exit 0 } catch { exit 1 }";
+  try { execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{windowsHide:true,timeout:8000}); }
+  catch { throw new Error('Eski yükseltilmiş başlangıç görevi kaldırılamadı. Setup dosyasını bir kez yönetici olarak kurup tekrar deneyin.'); }
   app.setLoginItemSettings({ openAtLogin: enable, path: process.execPath, args: ['--startup'] });
   if (app.getLoginItemSettings({path:process.execPath,args:['--startup']}).openAtLogin !== enable) throw new Error('Windows başlangıç kaydı doğrulanamadı.');
 }
@@ -234,7 +235,12 @@ app.whenReady().then(() => {
     } finally { hardwareBusy = false; }
   }, 1500);
 
-  // Startup registrations are changed only by an explicit setting change.
+  // Once-only migration preserves an existing enabled startup preference after setup.
+  if (!testMode && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE &&
+      ruleStore.getSettings().autoStartOnBoot && ruleStore.getSettings().startupRegistrationVersion!==1) {
+    try { setupWindowsAutoStart(true);ruleStore.updateSettings({startupRegistrationVersion:1}); }
+    catch(err) { console.warn('Başlangıç kaydı taşınamadı:',err.message); }
+  }
   if (testMode) {
     const resultPath = path.join(app.getPath('userData'),'smoke.json');
     const errors=[];
@@ -384,7 +390,8 @@ app.whenReady().then(() => {
       detail:'Yalnızca kullanıcı Temp (.tmp/.temp) ve CrashDumps (.dmp) klasörlerinde, en az 7 gündür değişmeyen doğrudan dosyalar. Değişen, bağlı ve kullanımda olan dosyalar atlanır.\nKişisel belgeler, OneDrive, Windows, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
     if(answer.response !== 1) return {success:false,canceled:true,message:'Temizlik iptal edildi.'};
     const report=await DiskCleaner.cleanJunkFiles(token);
-    fs.writeFileSync(path.join(app.getPath('userData'),'last-cleanup.json'),JSON.stringify({at:new Date().toISOString(),...report},null,2));
+    try { fs.writeFileSync(path.join(app.getPath('userData'),'last-cleanup.json'),JSON.stringify({at:new Date().toISOString(),...report},null,2)); }
+    catch { report.message+=' Rapor dosyası kaydedilemedi; sonuçlar bu ekranda gösteriliyor.'; }
     return report;
   });
   ipcMain.handle('scan-large-files', (_, driveLetter, minSizeMb) => DiskCleaner.scanLargeFiles(driveLetter, minSizeMb));

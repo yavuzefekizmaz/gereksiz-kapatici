@@ -1,11 +1,16 @@
+param([switch]$AllUsers)
 $ErrorActionPreference = 'Stop'
 $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-$installDir = Join-Path $env:RUNNER_TEMP 'Update Integration\Voldena Oyun Hizlandiricisi'
+$scope = if ($AllUsers) { 'allusers' } else { 'currentuser' }
+$installDir = Join-Path $env:RUNNER_TEMP "Update Integration $scope\Voldena Oyun Hizlandiricisi"
 $oldInstaller = Join-Path $env:RUNNER_TEMP 'Voldena-previous-setup.exe'
 $exe = Join-Path $installDir 'Voldena Oyun Hizlandiricisi.exe'
 $newInstaller = (Resolve-Path "dist/Voldena.Oyun.Hizlandiricisi.Setup.$version.exe").Path
 Invoke-WebRequest 'https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/download/v1.2.2/Voldena.Oyun.Hizlandiricisi.Setup.1.2.2.exe' -OutFile $oldInstaller
-$old = Start-Process $oldInstaller -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+$checksums = (Invoke-WebRequest 'https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/download/v1.2.2/SHA256SUMS.txt').Content
+$expected = [regex]::Match($checksums,'(?im)^([0-9a-f]{64})\s+\*?Voldena\.Oyun\.Hizlandiricisi\.Setup\.1\.2\.2\.exe\s*$').Groups[1].Value
+if (!$expected -or (Get-FileHash -LiteralPath $oldInstaller -Algorithm SHA256).Hash -ine $expected) { throw 'Previous installer integrity failed' }
+$old = Start-Process $oldInstaller -ArgumentList @('/S', "/$scope", "/D=$installDir") -WindowStyle Hidden -Wait -PassThru
 if ($old.ExitCode -ne 0) { throw "Previous setup failed: $($old.ExitCode)" }
 if (!(Test-Path $exe)) { throw 'Previous setup did not install to the requested directory' }
 if ((Get-Item $exe).VersionInfo.ProductVersion -notlike '1.2.2*') { throw 'Previous version was not installed' }
@@ -15,9 +20,9 @@ $configPath = Join-Path $userData 'voldena_config.json'
 $profile = @{settings=@{autoGameDetection=$false;exitAfterOptimization=$false;autoStartOnBoot=$false};rules=@(@{id='preserved-profile';name='Preserve me';triggerProcess='VoldenaTestGame.exe';enabled=$false;closeTargets=@();launchTargets=@()});protectedApps=@('keep.exe');customGamePaths=@();verifiedGames=@();customFutureValue='preserve-unknown-field'}
 $profile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding ascii
 try {
-  Start-Process $exe
+  Start-Process $exe -WindowStyle Hidden
   Start-Sleep -Seconds 3
-  node scripts/launch-test-update.js $newInstaller $exe
+  node scripts/launch-test-update.js $newInstaller $exe "--scope=$scope"
   if ($LASTEXITCODE -ne 0) { throw 'Installer handoff failed' }
   # Simulate app.quit after confirmed startup, only for this isolated test installation.
   Get-Process | Where-Object { $_.Path -eq $exe } | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -41,7 +46,7 @@ try {
 }
 
 # Test actual installed renderer/startup APIs with isolated configuration, no game actions.
-$testData = Join-Path $env:RUNNER_TEMP 'VoldenaSmoke'
+$testData = Join-Path $env:RUNNER_TEMP "VoldenaSmoke-$scope"
 New-Item -ItemType Directory -Path $testData -Force | Out-Null
 $process = Start-Process $exe -ArgumentList @('--voldena-safe-test',"--test-data=$testData",'--startup','--verify-startup') -WindowStyle Hidden -PassThru
 if (!$process.WaitForExit(45000)) { throw 'Safe installed smoke test did not exit' }

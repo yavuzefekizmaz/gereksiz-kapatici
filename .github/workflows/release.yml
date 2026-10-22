@@ -44,7 +44,9 @@ jobs:
         run: npm run dist -- --publish never
       - name: Verify installed update and automatic restart
         shell: pwsh
-        run: ./scripts/verify-windows-update.ps1
+        run: |
+          ./scripts/verify-windows-update.ps1
+          ./scripts/verify-windows-update.ps1 -AllUsers
       - name: Verify packages and prepare source archive
         shell: pwsh
         run: |
