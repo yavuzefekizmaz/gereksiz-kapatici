@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/refinement.css">
   <link rel="stylesheet" href="styles/experience.css">
+  <link rel="stylesheet" href="styles/polish.css">
   <link rel="stylesheet" href="vendor/fontawesome/package/css/all.min.css">
 </head>
 <body>
@@ -240,13 +241,14 @@
           <div class="setting-row">
             <div class="setting-text">
               <div class="setting-title">Seçili arka plan uygulamalarını topluca kapat</div>
-              <div class="setting-desc">Yalnızca aşağıda seçtiğiniz desteklenen uygulamalar profil hedeflerine eklenir. Korumalı uygulamalar, oyunlar, sürücüler ve Windows hizmetleri kapanmaz. <button type="button" class="btn btn-secondary" id="btn-configure-bulk">Kapatılacakları seç</button></div>
+              <div class="setting-desc">Seçtiğiniz listeyi tüm oyun profillerine ekler. Oyunlar, korumalı uygulamalar ve Windows bileşenleri açık kalır.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="setting-smart-sweep">
               <span class="slider"></span>
             </label>
           </div>
+          <div class="bulk-setting-actions"><span>Her oyun için ortak kapatma listesi</span><button type="button" class="btn btn-secondary" id="btn-configure-bulk"><i class="fa-solid fa-list-check"></i> Uygulamaları düzenle</button></div>
         </div>
 
         <div id="game-optimization-rules" class="rules-list">
@@ -332,7 +334,7 @@
             Bu listedeki uygulamalar seçili kapatma hedefleri arasında olsalar da korunur.
           </p>
 
-          <input id="search-protected" class="form-input" type="search" placeholder="Korumalı uygulamalarda ara…" aria-label="Korumalı uygulamalarda ara"><div class="protected-add-bar">
+          <label class="protected-search"><i class="fa-solid fa-magnifying-glass"></i><input id="search-protected" class="form-input" type="search" placeholder="Korumalı uygulamalarda ara…" aria-label="Korumalı uygulamalarda ara"></label><div class="protected-add-bar">
             <input type="text" class="form-input" id="input-protected-app" placeholder="Örn: anydesk.exe, code.exe..." style="flex: 1;">
             <button class="btn btn-secondary" id="btn-browse-protected-picker" type="button">
               <i class="fa-solid fa-list-check"></i> Uygulama Seçici
@@ -646,13 +648,13 @@
       <input type="hidden" id="rule-form-editing-id" value="">
 
       <div class="form-group">
-        <label class="form-label">Kural / Oyun Profil Adı</label>
+        <label class="form-label">Bu profile bir ad verin</label>
         <input type="text" class="form-input" id="rule-form-name" placeholder="Örn: Valorant Modu veya CS2 Modu">
       </div>
 
       <!-- Trigger Game / Process -->
       <div class="form-group">
-        <label class="form-label">Tetikleyici Oyun / Süreç (.exe)</label>
+        <label class="form-label">Hangi oyun / uygulama açılınca çalışsın?</label>
         <div class="input-with-buttons">
           <input type="text" class="form-input" id="rule-form-trigger" placeholder="Örn: VALORANT-Win64-Shipping.exe veya cs2.exe" style="flex: 1;">
           <button class="btn btn-secondary" id="btn-picker-trigger" type="button" title="Uygulama veya Oyun Listesinden Seç">
@@ -667,7 +669,7 @@
       <!-- Close Targets (Kapatılacak Uygulamalar) -->
       <div class="form-group">
         <div class="form-label-row">
-          <label class="form-label">Kapatılacak Uygulamalar (Oyun Açılınca Kapanır)</label>
+          <label class="form-label">Oyun açılınca bunları kapat</label>
         </div>
 
         <div class="manual-add-row">
@@ -691,7 +693,7 @@
       <!-- Launch Targets (Otomatik Açılacak Yan Uygulamalar) -->
       <div class="form-group">
         <div class="form-label-row">
-          <label class="form-label">Otomatik Başlatılacak Yan Uygulamalar / Linkler (İsteğe Bağlı)</label>
+          <label class="form-label">Oyunla birlikte bunları aç (isteğe bağlı)</label>
         </div>
 
         <div class="manual-add-row">
@@ -715,9 +717,10 @@
       <!-- Optimization Level -->
       <div class="form-group">
         <label class="form-label" for="rule-form-exit-launch">Oyun / uygulama bitince açılacak uygulamalar</label>
-        <p class="setting-desc">Her satıra bir .exe adı veya tam EXE konumu ekleyin. Yalnızca bu liste açılır; tüm uygulamaları geri açma kapalı kalabilir. Voldena kapansa da ayrı izleyici oyun bitişini bekler.</p>
-        <textarea class="form-input" id="rule-form-exit-launch" rows="3" placeholder="Örnek: D:\SteamLibrary\steamapps\common\wallpaper_engine\wallpaper64.exe"></textarea>
-        <button type="button" class="btn btn-secondary" id="btn-browse-exit-launch">Oyun bitişine uygulama ekle…</button>
+        <p class="setting-desc">Yalnızca seçtikleriniz açılır. Örneğin Wallpaper Engine oyun sırasında dursun, oyun bitince devam etsin. Voldena kapansa da bu liste çalışır.</p>
+        <div class="exit-picker-actions"><button type="button" class="btn btn-primary" id="btn-open-picker-exit"><i class="fa-solid fa-list-check"></i> Uygulama seç</button><button type="button" class="btn btn-secondary" id="btn-browse-exit-launch"><i class="fa-solid fa-folder-open"></i> Dosya seç</button></div>
+        <textarea class="form-input" id="rule-form-exit-launch" hidden></textarea>
+        <div id="pills-exit-list" class="pills-list"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Optimizasyon Seviyesi</label>
@@ -929,7 +932,7 @@
   <div class="modal-overlay" id="modal-cleanup">
     <div class="modal-box cleanup-modal" role="dialog" aria-modal="true" aria-labelledby="cleanup-title">
       <div class="cleanup-heading"><div><div class="cleanup-eyebrow">ÖNCE İNCELE · SONRA TEMİZLE</div><h2 id="cleanup-title">Ne silineceği belli olsun.</h2></div><i class="fa-solid fa-shield-halved" style="font-size:30px;color:var(--primary)"></i></div>
-      <div class="cleanup-scope"><strong>Bu dosyalar neden geçici?</strong> Temp dosyaları, uygulamaların işlem veya kurulum sırasında kullandığı çalışma dosyalarıdır. CrashDumps dosyaları hata incelemek için oluşan bellek dökümleridir. Yalnızca bu iki kullanıcı klasöründeki <strong>.tmp / .temp / .dmp</strong> dosyalarından en az 7 gündür değişmeyenler adaydır. Eski bir hata dökümünü incelemek istiyorsanız temizlemeyin.<br><strong>Kapsam dışında:</strong> belgeler, OneDrive, İndirilenler, alt klasörler, Windows, oyunlar, shader önbellekleri ve geri dönüşüm kutusu. Değişen veya kilitli dosyalar atlanır.</div>
+      <div class="cleanup-scope"><strong>Neden temizlenebilir?</strong> Doğrulanmış Temp klasörlerinde 7 günden eski <strong>.tmp / .temp / .log / .etl</strong> çalışma dosyaları ve günlükleri, eski CrashDumps bellek dökümleri ve 30 günden eski arşivlenmiş Windows hata raporları incelenir. Alt klasörler de taranır; hangi dosyanın neden aday olduğu aşağıda yazılıdır. Hata incelemesi yapacaksanız raporları saklayın.<br><strong>Kapsam dışında:</strong> kişisel belgeler, OneDrive, İndirilenler, oyunlar, program dosyaları, shader önbellekleri ve geri dönüşüm kutusu. Klasör bağlantıları izlenmez; değişen veya kilitli dosyalar atlanır.</div>
       <div class="cleanup-summary" id="cleanup-summary"></div>
       <div class="cleanup-files" id="cleanup-files"></div>
       <div id="cleanup-disk-result"></div>
@@ -941,5 +944,6 @@
   <script src="disk-scan-cache.js"></script>
   <script src="renderer.js"></script>
   <script src="experience.js"></script>
+  <script src="polish.js"></script>
 </body>
 </html>

@@ -20,3 +20,15 @@ test('large-file action cannot delete a file that was not in the scan',async()=>
   const result=await Cleaner.deleteTargetFile('C:\\unscanned.txt',{trashItem:()=>{throw new Error('Unexpected deletion');}});
   assert.equal(result.success,false);
 });
+
+test('recursive temp preview includes old logs, keeps executables and new files, and rejects an ancestor replaced by a junction',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'Voldena-temp-recursive-')),local=process.env.LOCALAPPDATA;process.env.LOCALAPPDATA=root;
+  t.after(()=>{if(local===undefined)delete process.env.LOCALAPPDATA;else process.env.LOCALAPPDATA=local;fs.rmSync(root,{recursive:true,force:true});});
+  const nested=path.join(root,'Temp','nested'),outside=path.join(root,'personal');fs.mkdirSync(nested,{recursive:true});fs.mkdirSync(outside);
+  const put=(file,old=true)=>{fs.writeFileSync(file,'data');if(old){const date=new Date(Date.now()-10*86400000);fs.utimesSync(file,date,date);}};
+  const oldLog=path.join(nested,'old.log'),outsideFile=path.join(outside,'old.log');put(oldLog);put(outsideFile);put(path.join(nested,'keep.exe'));put(path.join(nested,'recent.tmp'),false);
+  const preview=await Cleaner.getJunkSummary();assert.equal(preview.files.length,1);assert.equal(preview.files[0].path,oldLog);
+  const otherDrive=await Cleaner.getJunkSummary('Z:');assert.equal(otherDrive.files.length,0);assert.equal(otherDrive.categories.length,0);
+  fs.renameSync(nested,nested+'-saved');fs.symlinkSync(outside,nested,process.platform==='win32'?'junction':'dir');
+  const result=await Cleaner.cleanJunkFiles(preview.token);assert.equal(result.deletedCount,0);assert.equal(result.skippedCount,1);assert.equal(fs.existsSync(outsideFile),true);
+});

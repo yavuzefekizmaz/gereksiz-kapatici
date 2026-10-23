@@ -1,4 +1,6 @@
-# Voldena Oyun Hızlandırıcı — 1.5
+# Voldena Oyun Hızlandırıcı — 1.6
+
+Oyun yokken hızlı kısayol ayrı bir küçük kapatma listesi kullanır; başlangıç önerisi AnyDesk'tir. Profil ayarları adımlara ayrılır. Sonuçlar, açık kalma nedenleri ve sorunlar için Ayarlar'da ayrıntılı günlük, tek tuşla kopyalama ve `%APPDATA%\voldena\logs.txt` dışa aktarımı bulunur. Disk taraması ilk girişte başlar ve sonuçlar korunur; geçici dosyalar seçilen diskle sınırlıdır.
 
 Windows için oyun ve uygulama profilleri. Kapatılacak, oyunla açılacak ve oyun bitince açılacak uygulamalar ayrı listelerdir. Otomatik algılanan oyuna tıklayarak özel profil oluşturabilirsiniz.
 

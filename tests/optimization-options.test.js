@@ -18,3 +18,8 @@ test('bulk selection merges only configured names and retains the protected/game
     assert.deepEqual(args[0],['chrome.exe','spotify.exe']);assert.ok(args[1].includes('game.exe'));assert.ok(args[1].includes('discord.exe'));
   }finally{Optimizer.killProcesses=original;}
 });
+test('an idle quick rule cannot inherit the game bulk list even when bulk closing is enabled',async()=>{
+  const original=Optimizer.killProcesses;let targets;
+  Optimizer.killProcesses=async names=>{targets=names;return {closedApps:[],details:[],failed:[]};};
+  try{await new Monitor({}).handleRuleTrigger({id:'quick-idle',closeTargets:['anydesk.exe'],useBulkClose:false,optimizationLevel:'medium',keepExplorer:true},{selectedBulkCloseEnabled:true,defaultCloseTargets:['chrome.exe','spotify.exe']},[]);assert.deepEqual(targets,['anydesk.exe']);}finally{Optimizer.killProcesses=original;}
+});

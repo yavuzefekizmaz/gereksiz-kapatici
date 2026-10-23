@@ -13,14 +13,21 @@ test('quick boost immediately applies an already running game then saves and exi
   assert.equal(result.detected,true);
   assert.deepEqual(events,['stop','apply','save','notify','quit']);
 });
-test('missing game and failed detection never apply a profile and always exit', async()=>{
+test('disabled idle mode and failed detection never close anything and always exit', async()=>{
   for(const fail of [false,true]) {
     let applied=false,exited=false;
-    const result=await quickBoost({stop(){},detectRunningGameNow:async()=>{if(fail)throw Error('poll failed');return {isRunning:false};},triggerRuleManually:()=>{applied=true;}},
+    const result=await quickBoost({ruleStore:{getSettings:()=>({quickIdleEnabled:false})},stop(){},detectRunningGameNow:async()=>{if(fail)throw Error('poll failed');return {isRunning:false};},triggerRuleManually:()=>{applied=true;}},
       {memory:()=>({}),save(){},notify(){},quit(){exited=true;}});
     assert.equal(applied,false);assert.equal(exited,true);
     assert.equal(fail?result.error:result.detected,fail?'poll failed':false);
   }
+});
+
+test('no-game quick mode uses only its separate small list, never the game defaults or bulk list',async()=>{
+  let actualRule,quit=false;
+  const monitor={ruleStore:{getSettings:()=>({quickIdleCloseTargets:['anydesk.exe'],defaultCloseTargets:['chrome.exe','spotify.exe'],selectedBulkCloseEnabled:true})},stop(){},detectRunningGameNow:async()=>({isRunning:false}),triggerRuleManually:async rule=>{actualRule=rule;return {closedCount:1,report:{closedApps:[{name:'anydesk.exe'}],failed:[]}};}};
+  const result=await quickBoost(monitor,{memory:()=>({}),save(){},notify(){},quit(){quit=true;}});
+  assert.deepEqual(actualRule.closeTargets,['anydesk.exe']);assert.equal(actualRule.useBulkClose,false);assert.equal(actualRule.keepExplorer,true);assert.deepEqual(actualRule.launchTargets,[]);assert.equal(result.idleMode,true);assert.equal(quit,true);
 });
 test('busy operation is neither interrupted nor quit',async()=>{
   await quickBoost({isProcessing:true,stop(){assert.fail();}}, {wait:async()=>{},notify(){},quit(){assert.fail();}});

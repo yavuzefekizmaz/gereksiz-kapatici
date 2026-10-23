@@ -76,7 +76,15 @@ if (!gotTheLock) {
 // Request admin elevation if in dev mode
 
 
-function safeHandle(channel, handler) { ipcMain.handle(channel, (event, ...args) => { require('./lib/ipc-security').assertTrustedSender(event,mainWindow); return handler(event,...args); }); }
+let journal=null,appIcons=null,manualBoostTask=null,exitNotice=null,noticeInterval=null;
+const quietIPC=/^(get-(memory|hardware|status|resource|app-icons|diagnostics)|report-ui)/;
+function safeHandle(channel, handler) { ipcMain.handle(channel, async(event, ...args) => {
+  require('./lib/ipc-security').assertTrustedSender(event,mainWindow);
+  const started=Date.now(),tracked=!quietIPC.test(channel);
+  if(tracked)journal?.record('request:'+channel,{args});
+  try{const result=await handler(event,...args);if(tracked)journal?.record('result:'+channel,{elapsedMs:Date.now()-started,result:Array.isArray(result)?{count:result.length}:result});return result;}
+  catch(error){journal?.record('failed:'+channel,{message:error.message,elapsedMs:Date.now()-started},'error');throw error;}
+}); }
 let mainWindow = null;
 let tray = null;
 let ruleStore = null;
@@ -95,19 +103,21 @@ async function runQuickBoost() {
   try {
     await require('./lib/quick-boost').quickBoost(processMonitor, {
       memory: () => RamOptimizer.getSystemMemoryStats(),
-      save: result => fs.writeFileSync(path.join(app.getPath('userData'), 'last-quick-boost.json'), JSON.stringify(result, null, 2)),
+      save: result => {journal?.record('quick-boost-result',result);fs.writeFileSync(path.join(app.getPath('userData'), 'last-quick-boost.json'), JSON.stringify(result, null, 2));},
       notify: body => { if (Notification.isSupported()) new Notification({ title: 'Voldena Hızlandır ve Kapat', body, icon: logoPath }).show(); },
       quit: quitFully
     });
   } finally { quickBoostBusy = false; }
 }
 function quitFully(report) {
+  exitNotice?.sync(null);clearInterval(noticeInterval);
+  journal?.record('application-exit',report||{});
   desktopGuard?.requestRestore();
   require('./lib/app-lifecycle').finishGameSession({app, monitor: processMonitor, tray,
     clearTimers: () => clearInterval(memoryInterval),
     saveReport: data => fs.writeFileSync(path.join(app.getPath('userData'),'last-optimization.json'),JSON.stringify(data,null,2))},report);
 }
-app.on('before-quit', () => { app.isQuitting = true; desktopGuard?.requestRestore(); processMonitor?.stop(); });
+app.on('before-quit', () => { exitNotice?.sync(null);clearInterval(noticeInterval);app.isQuitting = true; desktopGuard?.requestRestore(); processMonitor?.stop(); });
 
 const logoPath = path.join(__dirname, 'src', 'assets', 'voldena-mark.png');
 
@@ -140,6 +150,9 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', event => event.preventDefault());
   mainWindow.webContents.on('will-attach-webview', event => event.preventDefault());
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents,_permission,callback)=>callback(false));
+  mainWindow.webContents.on('render-process-gone',(_event,details)=>journal?.record('renderer-stopped',details,'error'));
+  mainWindow.webContents.on('did-fail-load',(_event,code,description)=>journal?.record('page-load-failed',{code,description},'error'));
+  mainWindow.webContents.on('console-message',(details,level,message)=>{const severity=details.level||level;if(severity==='error'||severity==='warning'||level>=2)journal?.record('renderer-console',{message:details.message||message},severity==='error'||level>=3?'error':'warn');});
 
   mainWindow.webContents.on('did-finish-load', () => {
     if (processMonitor) {
@@ -227,6 +240,12 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  journal=new (require('./lib/operation-journal').OperationJournal)(app.getPath('userData'));
+  journal.record('application-start',{version:app.getVersion(),mode:testMode?'isolated-test':pendingQuickBoost?'quick-boost':'normal',hidden:process.argv.includes('--startup')||process.argv.includes('--hidden'),exe:process.execPath});
+  appIcons=new (require('./lib/app-icons').AppIcons)(app,AppScanner);
+  if(testMode)AppScanner.resolvedPathCache.set('voldenafixturegame.exe',process.execPath);
+  if(process.platform==='win32')app.setAppUserModelId('com.voldena.gamebooster');
+  for(const level of ['warn','error']){const original=console[level].bind(console);console[level]=(...args)=>{journal.record('engine-'+level,{message:args.map(arg=>arg instanceof Error?arg.stack:String(arg)).join(' ')},level);original(...args);};}
   if (!gotTheLock) return;
   ruleStore = new RuleStore();
   gameDetector = new GameDetector(ruleStore);
@@ -243,6 +262,11 @@ app.whenReady().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-changed',state);
     if (tray) updateTrayMenu();
   }, quitFully);
+  processMonitor.onEvent=(event,details)=>journal.record(event,details);
+  if(!testMode&&process.platform==='win32'){
+    exitNotice=new (require('./lib/exit-notice').ExitNotice)({log:(event,details)=>journal.record(event,details)});
+    noticeInterval=setInterval(()=>exitNotice.sync(processMonitor.exitDeadline,ruleStore.getSettings().notifyOnAction!==false),1000);
+  }
   desktopGuard=new (require('./lib/desktop-guard'))(path.join(app.getPath('userData'),'desktop-recovery'));
   if(!testMode)processMonitor.desktopGuard=desktopGuard;
   if(!testMode)processMonitor.armExitRestore=async(rule,running)=>{
@@ -260,7 +284,7 @@ app.whenReady().then(() => {
   processMonitor.onReport=report=>fs.writeFileSync(path.join(app.getPath('userData'),'last-session.json'),JSON.stringify(report,null,2));
 
   // Quick mode works with games already running and never opens the full interface.
-  if (testMode) processMonitor.fetchRunningProcesses = async () => new Set();
+  if (testMode) {processMonitor.fetchRunningProcesses = async () => new Set();ruleStore.updateSettings({quickIdleEnabled:false});}
   if (pendingQuickBoost) { void runQuickBoost(); return; }
 
   const updateTrayMenu = createTray();
@@ -346,20 +370,9 @@ app.whenReady().then(() => {
   });
 
   // Manual Boost & Detection Handlers
-  safeHandle('manual-detect-and-boost', async () => {
-    const check = await processMonitor.detectRunningGameNow();
-    if (check.isRunning && check.rule) {
-      const boostResult = await processMonitor.triggerRuleManually(check.rule);
-      return {
-        detected: true,
-        rule: check.rule,
-        closedCount: boostResult.closedCount
-      };
-    }
-    return {
-      detected: false,
-      rules: ruleStore.getRules().filter(r => r.enabled)
-    };
+  safeHandle('manual-detect-and-boost', () => {
+    if(!manualBoostTask)manualBoostTask=processMonitor.manualDetectAndBoost().finally(()=>{manualBoostTask=null;});
+    return manualBoostTask;
   });
 
   safeHandle('force-apply-rule', async (_, ruleId) => {
@@ -404,6 +417,7 @@ app.whenReady().then(() => {
     const answer=await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Listelenen uygulamaları kapat'],defaultId:0,cancelId:0,message:active.join(', '),detail:'RAM yükünü azaltmak için yalnızca bu seçili uygulamalara normal kapatma isteği gönderilecek. Kaydedilmemiş çalışmaları önce kaydedin. Sistem genelinde zorla RAM boşaltılmaz.'});
     if(answer.response!==1)return {success:false,message:'İptal edildi; hiçbir uygulama kapatılmadı.'};
     const report=await processMonitor.triggerRuleManually({id:'memory-action',name:'Seçili uygulamalarla RAM yükünü azalt',closeTargets:active,launchTargets:[],optimizationLevel:'medium',keepExplorer:true});
+    if(report.busy)return {success:false,message:report.message};
     return {success:true,message:`${report.closedCount} uygulama kapandı; ${report.report.failed.length} işlem tamamlanamadı. Ayrıntılar Son İşlem Raporu bölümünde. Bellek değişimi diğer uygulamalardan da etkilenir; FPS artışı garanti edilmez.`};
   });
 
@@ -413,16 +427,24 @@ app.whenReady().then(() => {
     try{return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'last-session.json'),'utf8'));}catch{return null;}
   });
   safeHandle('get-startup-context',()=>({hiddenLaunch:process.argv.includes('--startup')||process.argv.includes('--hidden'),testMode,canConfigureStartup:testMode||(app.isPackaged&&!process.env.PORTABLE_EXECUTABLE_FILE)}));
-  safeHandle('get-bulk-candidates',async()=>{
+  safeHandle('get-bulk-candidates',async(_,showAll=false)=>{
     if(testMode)return [{name:'chrome.exe',running:true,protected:false},{name:'discord.exe',running:false,protected:true}];
     const running=await AppScanner.getRunningProcesses({throwOnError:true,currentSessionOnly:true});
     const protectedSet=new Set([...ruleStore.getProtectedApps(),...ruleStore.getRules().map(rule=>rule.triggerProcess)].map(name=>RamOptimizer.normalizeProcessName(name)));
-    return RamOptimizer.supportedCloseTargets().map(name=>({name,running:running.some(row=>row.name.toLowerCase()===name),protected:protectedSet.has(name)}));
+    const configured=[...(ruleStore.getSettings().defaultCloseTargets||[]),...(ruleStore.getSettings().quickIdleCloseTargets||['anydesk.exe']),...ruleStore.getRules().flatMap(rule=>rule.closeTargets||[])].map(name=>RamOptimizer.normalizeProcessName(name)).filter(Boolean);
+    const names=[...new Set(showAll?[...configured,...RamOptimizer.supportedCloseTargets(),...running.map(row=>row.name.toLowerCase())]:configured)];
+    return names.map(name=>{const row=running.find(row=>row.name.toLowerCase()===name);return {name,running:!!row,path:row?.path,memoryMb:row?.memoryMb||0,protected:protectedSet.has(name),supported:RamOptimizer.isCloseableProcess(name),system:!RamOptimizer.isCloseableProcess(name)&&(/\\windows\\/i.test(row?.path||'')||require('./lib/app-icons').systemName.test(name))};});
   });
+  safeHandle('get-app-icons',(_,targets)=>appIcons.batch(targets));
+  safeHandle('get-diagnostics',()=>journal.text().slice(-180000));
+  safeHandle('copy-diagnostics',()=>{journal.record('diagnostics-copied');require('electron').clipboard.writeText(journal.text());return {success:true};});
+  safeHandle('export-diagnostics',()=>{journal.record('diagnostics-exported');return {success:true,path:journal.export()};});
+  safeHandle('report-ui-event',(_,event)=>{if(event&&typeof event.name==='string'&&event.name.length<100)journal.record('ui:'+event.name,{message:String(event.message||'').slice(0,2000),tab:String(event.tab||'').slice(0,80)});});
   safeHandle('get-resource-advice',async()=>{
     const settings=ruleStore.getSettings();if(testMode||settings.resourceWarnings===false)return [];
     const rows=await AppScanner.getRunningProcesses({throwOnError:true,currentSessionOnly:true,metrics:true});
     resourceAdvice=resourceAdvisor.sample(rows,{protectedApps:[...ruleStore.getProtectedApps(),...ruleStore.getRules().map(rule=>rule.triggerProcess)],selected:[...(settings.defaultCloseTargets||[]),...(processMonitor.activeRule?.closeTargets||[])],cpuThreshold:Math.min(100,Math.max(1,Number(settings.resourceCpuThreshold)||15)),ramThreshold:Math.min(100,Math.max(1,Number(settings.resourceRamThreshold)||10))});
+    if(resourceAdvice.length)journal.record('high-resource-suggestions',{candidates:resourceAdvice});
     return resourceAdvice;
   });
   safeHandle('dismiss-resource-advice',(_,name)=>{if(typeof name==='string')resourceAdvisor.ignore(name);});
@@ -432,7 +454,8 @@ app.whenReady().then(() => {
     const answer=await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Hayır, açık kalsın','Evet, kapat'],defaultId:0,cancelId:0,message:`${name}: CPU %${candidate.cpuPercent}, RAM %${candidate.ramPercent}`,detail:'Bu uygulama kapatma listenizde değil. Kapatmak istiyor musunuz? Kaydedilmemiş çalışmaları önce kaydedin.'});
     if(answer.response!==1)return {success:false,message:'Uygulama açık bırakıldı.'};
     const protectedApps=[...ruleStore.getProtectedApps(),...ruleStore.getRules().map(rule=>rule.triggerProcess)];
-    const report=await RamOptimizer.killProcesses([name],protectedApps,{allowedPaths:candidate.paths,forceTrayApps:ruleStore.getSettings().forceCloseSelectedTrayApps!==false});
+    const report=await RamOptimizer.killProcesses([name],protectedApps,{allowedPaths:candidate.paths,forceTrayApps:ruleStore.getSettings().forceCloseSelectedTrayApps!==false,onEvent:(event,details)=>journal.record(event,details)});
+    journal.record('resource-close-result',report);
     resourceAdvisor.ignore(name);
     return {success:report.closedApps.length>0,message:report.closedApps.length?'Uygulama kapatıldı.':'Kapatılamadı veya uygulama artık çalışmıyor.'};
   });
@@ -482,21 +505,21 @@ app.whenReady().then(() => {
 
   // Disk & Storage Cleaner Endpoints
   safeHandle('get-drives-info', () => DiskCleaner.getDrivesInfo());
-  safeHandle('get-junk-summary', () => DiskCleaner.getJunkSummary());
+  safeHandle('get-junk-summary', (_,drive) => testMode?{token:'test-only',files:[],categories:[],diagnostics:[],complete:true,availableDrives:['C:'],displaySize:'0 MB',drive}:DiskCleaner.getJunkSummary(drive));
   safeHandle('clean-junk-files', async (_, token) => {
     const selected = DiskCleaner.previews.get(token);
     if(!selected) return {success:false,error:'Önce temizlik önizlemesini açın.'};
     const bytes=selected.files.reduce((sum,f)=>sum+f.size,0);
     const answer = await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Gösterilen dosyaları temizle'],defaultId:0,cancelId:0,
       title:'Gösterilen geçici dosyaları sil', message: (bytes/1073741824).toFixed(3)+' GB — önizlemedeki '+selected.files.length+' dosya kalıcı olarak silinecek.',
-      detail:'Yalnızca kullanıcı Temp (.tmp/.temp) ve CrashDumps (.dmp) klasörlerinde, en az 7 gündür değişmeyen doğrudan dosyalar. Değişen, bağlı ve kullanımda olan dosyalar atlanır.\nKişisel belgeler, OneDrive, Windows, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
+      detail:'Önizlemedeki doğrulanmış geçici klasörlerde en az 7 gündür değişmeyen geçici dosyalar ve eski hata günlükleri. Alt klasörler de incelenir; bağlantılar ve sonradan değişen dosyalar atlanır.\nKişisel belgeler, OneDrive, oyunlar, shader önbellekleri ve geri dönüşüm kutusu kapsam dışıdır.'});
     if(answer.response !== 1) return {success:false,canceled:true,message:'Temizlik iptal edildi.'};
     const report=await DiskCleaner.cleanJunkFiles(token);
     try { fs.writeFileSync(path.join(app.getPath('userData'),'last-cleanup.json'),JSON.stringify({at:new Date().toISOString(),...report},null,2)); }
     catch { report.message+=' Rapor dosyası kaydedilemedi; sonuçlar bu ekranda gösteriliyor.'; }
     return report;
   });
-  safeHandle('scan-large-files', (_, driveLetter, minSizeMb) => DiskCleaner.scanLargeFiles(driveLetter, minSizeMb));
+  safeHandle('scan-large-files', (_, driveLetter, minSizeMb) => testMode?[]:DiskCleaner.scanLargeFiles(driveLetter, minSizeMb));
   safeHandle('delete-target-file', async (_, filePath) => {
     if (!DiskCleaner.scannedFiles.has(filePath)) return {success:false,error:'Önce dosyayı tarayın.'};
     const answer = await dialog.showMessageBox(mainWindow,{type:'question',buttons:['Vazgeç','Geri dönüşüm kutusuna taşı'],defaultId:0,cancelId:0,message:filePath});

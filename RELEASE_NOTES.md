@@ -1,4 +1,16 @@
-# Voldena 1.5.1
+# Voldena 1.6.0
+
+- Quick boost now has a separate small list for use without an open game (AnyDesk is the initial suggestion). It never inherits the game bulk list, changes game/Windows priorities or clears all RAM.
+- Manual detection queues behind an ordinary process poll instead of exposing a remote-method busy exception; repeated button clicks share one operation.
+- Simplifies profile setup into game, during-play, after-play and advanced steps. After-play apps use the same application picker as other lists. Discovered games open profile editing directly, including when no EXE was inferred.
+- Adds native EXE artwork with existing blue/gear fallbacks, a complete protection search field and more one-click protection suggestions. Windows components retain gear artwork.
+- Redesigns bulk selection, resource thresholds, history rows and custom color controls. Bulk selection initially shows previously configured apps and expands to the complete process inventory; unsupported/system items cannot be selected for closure.
+- A single compact in-app exit notice updates its remaining minutes; users can keep the app open without repeated popups. Installed Windows builds also use one tagged desktop notification with data-only minute updates, subject to Windows notification preferences.
+- Adds rotating local diagnostics for lifecycle, process changes, requests, per-application outcomes, scans and errors. Settings can copy the log or save logs.txt directly in the app data folder; exports include independent watcher results and strip credential-like fields/URL query strings.
+- Temp cleanup is scoped to the selected drive and explores subfolders of approved temporary locations. It includes old temporary log/ETL files and archived error reports, while checking every ancestor against links before deletion. Personal/game/program/shader files remain outside the scope. Large-file scans run once on first entry per scope and retain results until explicit rescan.
+- All-user setup removes this product's obsolete per-user Start menu shortcuts to prevent duplicate Windows Search entries. Existing published versions are preserved.
+
+## Previous releases — 1.5.1
 
 - Confirms the independent update-check launcher has finished its handoff before the main application exits. This fixes a Windows startup race that prevented completion reports even when setup succeeded.
 
