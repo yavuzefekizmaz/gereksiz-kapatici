@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const nodes=[...(root.matches?.('[data-app-exe]')?[root]:[]),...(root.querySelectorAll?.('[data-app-exe]')||[])];
     for(const node of nodes){if(node.dataset.iconRequested)continue;node.dataset.iconRequested='true';
       const fallback=node.matches('.protected-tag')?'fa-shield-halved':'fa-gear';
-      let host=node.querySelector('.app-avatar,.picker-item-icon,.discovered-game-icon');
+      let host=node.querySelector('.app-avatar,.picker-item-icon,.discovered-game-icon,.manual-boost-icon');
       if(!host){host=el('span','app-avatar');const old=node.querySelector(':scope > i');if(old)old.replaceWith(host);else node.prepend(host);}
       host.replaceChildren();const glyph=el('i','fa-solid '+fallback);host.appendChild(glyph);
       if(node.dataset.system==='true')continue;

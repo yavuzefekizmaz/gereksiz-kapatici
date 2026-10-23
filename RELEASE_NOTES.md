@@ -1,4 +1,4 @@
-# Voldena 1.6.1
+# Voldena 1.6.2
 
 - Quick boost now has a separate small list for use without an open game (AnyDesk is the initial suggestion). It never inherits the game bulk list, changes game/Windows priorities or clears all RAM.
 - Manual detection queues behind an ordinary process poll instead of exposing a remote-method busy exception; repeated button clicks share one operation.

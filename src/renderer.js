@@ -351,6 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rules.forEach(rule => {
       const item = document.createElement('div');
       item.className = 'manual-boost-card';
+      item.dataset.appExe=rule.triggerProcess||'';
       const closeCount = rule.closeTargets ? rule.closeTargets.length : 0;
       const launchCount = rule.launchTargets ? rule.launchTargets.length : 0;
       const trigger = rule.triggerProcess || 'Manuel';
@@ -769,6 +770,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isChecked = selectedInPicker.has(app.exe);
       const card = document.createElement('div');
       card.className = `picker-item ${isChecked ? 'selected' : ''}`;
+      card.dataset.appExe=app.path||app.exe||'';
       card.innerHTML = `
         <div class="picker-item-left">
           <div class="picker-item-icon"><i class="${app.icon || 'fa-solid fa-gamepad'}"></i></div>
@@ -1271,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (summaryContainer) {
         const summaryEl = document.createElement('div');
         summaryEl.className = 'rule-item interactive';
+        summaryEl.dataset.appExe=rule.triggerProcess||'';
         summaryEl.innerHTML = `
           <div class="rule-info">
             <div class="rule-name">${escapeHTML(rule.name)}</div>
@@ -1297,6 +1300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const createRuleCard = () => {
         const itemEl = document.createElement('div');
         itemEl.className = 'rule-item';
+        itemEl.dataset.appExe=rule.triggerProcess||'';
         itemEl.innerHTML = `
           <div class="rule-info">
             <div class="rule-name">${escapeHTML(rule.name)}</div>
