@@ -4,6 +4,9 @@ test('desktop countdown shows once, updates the same notice each minute and remo
   notice.sync(180000);notice.sync(180000);now=61000;notice.sync(180000);notice.sync(180000);now=121000;notice.sync(180000);notice.sync(null);await notice.chain;
   assert.deepEqual(calls,[['show',3],['update',2],['update',1],['remove',0]]);
 });
+test('persistent Windows reminder has a system dismiss action that cannot launch or focus the app',()=>{
+  const script=notificationScript('show',3);assert.match(script,/<toast scenario="reminder">/);assert.match(script,/<action content="Bildirimi gizle" arguments="dismiss" activationType="system"\/>/);assert.doesNotMatch(script,/activationType="foreground"/);
+});
 test('Windows parses the bound native notification scripts without showing a notification',()=>{
   if(process.platform!=='win32')return;
   const sources=['show','update','remove'].map(action=>{const script=notificationScript(action,3);assert.match(script,/voldena-exit/);return script;});

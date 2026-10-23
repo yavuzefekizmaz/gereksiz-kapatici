@@ -1,4 +1,6 @@
-# Voldena 1.6.2
+# Voldena 1.6.3
+
+- Adds the system-managed dismiss action required by Windows for a persistent reminder banner. The same tagged countdown still receives data-only updates; dismissing it does not open or focus the app.
 
 - Quick boost now has a separate small list for use without an open game (AnyDesk is the initial suggestion). It never inherits the game bulk list, changes game/Windows priorities or clears all RAM.
 - Manual detection queues behind an ordinary process poll instead of exposing a remote-method busy exception; repeated button clicks share one operation.
