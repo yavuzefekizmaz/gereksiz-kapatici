@@ -1,4 +1,10 @@
-# Voldena 1.3.1
+# Voldena 1.4.0
+
+Adds **Voldena – Hızlandır ve Kapat**, a desktop and Start menu shortcut. It runs the same engine with `--quick-boost`: detects an already running game immediately, applies its enabled profile (or the automatic game defaults), records the result and exits completely. It also works when the normal app is already running. No game means no applications are closed. Busy optimization or update operations are not interrupted. This mode does not wait for a new game or the normal 60-second exit timer.
+
+The private `last-quick-boost.json` report includes completed/failed operations and before/after system memory readings. Memory changes are observations, not guaranteed FPS or freed-memory claims. CPU/RAM load reduction comes from closing selected background applications; global memory trimming, game priority changes and service termination remain disabled.
+
+Wallpaper Engine web renderers and service helpers are now also excluded from automatic game detection. Quick mode ignores explicitly configured tool/IDE triggers without modifying those saved profiles. All detected running games remain protected during manual profile execution.
 
 Adds a regression fix so Steam-installed Wallpaper Engine and its WinRT helpers do not trigger automatic game profiles or the game exit countdown. Existing explicitly configured user profiles remain intact.
 

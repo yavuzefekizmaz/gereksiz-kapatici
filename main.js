@@ -50,6 +50,11 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
+    if (argv.includes('--quick-boost')) {
+      if (processMonitor) void runQuickBoost();
+      else pendingQuickBoost = true;
+      return;
+    }
     if (argv.includes('--startup') || argv.includes('--hidden')) return;
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -69,6 +74,20 @@ let gameDetector = null;
 let processMonitor = null;
 let memoryInterval = null;
 let updaterBridge = null;
+let pendingQuickBoost = process.argv.includes('--quick-boost');
+let quickBoostBusy = false;
+async function runQuickBoost() {
+  if (quickBoostBusy) return;
+  quickBoostBusy = true;
+  try {
+    await require('./lib/quick-boost').quickBoost(processMonitor, {
+      memory: () => RamOptimizer.getSystemMemoryStats(),
+      save: result => fs.writeFileSync(path.join(app.getPath('userData'), 'last-quick-boost.json'), JSON.stringify(result, null, 2)),
+      notify: body => { if (Notification.isSupported()) new Notification({ title: 'Voldena Hızlandır ve Kapat', body, icon: logoPath }).show(); },
+      quit: quitFully
+    });
+  } finally { quickBoostBusy = false; }
+}
 const testMode = process.argv.includes('--voldena-safe-test');
 if (testMode) {
   const arg = process.argv.find(a => a.startsWith('--test-data='));
@@ -196,11 +215,12 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  if (!gotTheLock) return;
   ruleStore = new RuleStore();
   gameDetector = new GameDetector(ruleStore);
 
   // Background auto-scan; safe tests never inspect personal game libraries.
-  if (!testMode) gameDetector.scanAllGameLibraries().then(() => {
+  if (!testMode && !pendingQuickBoost) gameDetector.scanAllGameLibraries().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('games-scanned', gameDetector.discoveredGames);
     }
@@ -210,6 +230,10 @@ app.whenReady().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-changed',state);
     if (tray) updateTrayMenu();
   }, quitFully);
+
+  // Quick mode works with games already running and never opens the full interface.
+  if (testMode) processMonitor.fetchRunningProcesses = async () => new Set();
+  if (pendingQuickBoost) { void runQuickBoost(); return; }
 
   const updateTrayMenu = createTray();
 

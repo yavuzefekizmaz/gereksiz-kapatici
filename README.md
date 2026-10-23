@@ -6,6 +6,8 @@ Arka plan işlemlerini ve RAM önbelleğini yöneterek bilgisayar oyun performan
 
 ## ✨ Özellikler
 
+- ⚡ **Hızlandır ve Kapat**: Masaüstündeki kısayola çift tıklayın. Açık oyunun kayıtlı profili (veya otomatik oyun ayarları) hemen uygulanır, sonuç kaydedilir ve Voldena tamamen kapanır. Normal uygulama açıkken de çalışır. Oyun bulunmazsa hiçbir arka plan uygulaması kapatılmaz; Windows bildirimi gösterilir. Sonuç raporu `%APPDATA%\voldena\last-quick-boost.json` içindedir. Portable dosyası da `--quick-boost` seçeneğini destekler.
+
 - 🎮 **Oyun Modları**: Valorant ve Counter-Strike 2 gibi oyunlar için özelleştirilmiş hazır ayarlar.
 - 🛡️ **Sistem Koruması**: Toplu RAM boşaltma, Windows servislerini durdurma, Explorer kapatma ve CPU önceliği değiştirme devre dışıdır.
 - ⚙️ **Uygulama Kapatma**: Seçili ve desteklenen masaüstü uygulamalarına normal kapatma isteği gönderin; gerçekten kapananları oyun bitince geri açın. Kapanmayı reddeden uygulamalar açık kalır.

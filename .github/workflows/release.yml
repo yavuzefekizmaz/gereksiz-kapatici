@@ -47,6 +47,9 @@ jobs:
         run: |
           ./scripts/verify-windows-update.ps1
           ./scripts/verify-windows-update.ps1 -AllUsers
+      - name: Verify one-shot quick boost and second instance forwarding
+        shell: pwsh
+        run: ./scripts/verify-quick-boost.ps1 -Exe (Resolve-Path 'dist/win-unpacked/Voldena Oyun Hizlandiricisi.exe').Path
       - name: Verify packages and prepare source archive
         shell: pwsh
         run: |
