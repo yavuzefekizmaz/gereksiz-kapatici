@@ -43,6 +43,13 @@ contextBridge.exposeInMainWorld('voldenaAPI', {
   
   // Status & Dialogs
   getStatus: () => ipcRenderer.invoke('get-status'),
+  getLastSession: () => ipcRenderer.invoke('get-last-session'),
+  getStartupContext: () => ipcRenderer.invoke('get-startup-context'),
+  onManualOpen: callback => ipcRenderer.on('manual-open',callback),
+  getBulkCandidates: () => ipcRenderer.invoke('get-bulk-candidates'),
+  getResourceAdvice: () => ipcRenderer.invoke('get-resource-advice'),
+  closeResourceAdvice: name => ipcRenderer.invoke('close-resource-advice',name),
+  dismissResourceAdvice: name => ipcRenderer.invoke('dismiss-resource-advice',name),
   isAdmin: () => ipcRenderer.invoke('is-admin'),
   selectFile: () => ipcRenderer.invoke('select-file'),
   manualDetectAndBoost: () => ipcRenderer.invoke('manual-detect-and-boost'),

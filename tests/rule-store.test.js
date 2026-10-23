@@ -32,9 +32,16 @@ test('new close selections never silently remove explicit user protection', () =
 test('auto-restore cannot stay enabled while automatic exit is on', () => {
   const store = loadStore(null);
   store.updateSettings({ autoRestoreOnExit: true });
-  assert.equal(store.getSettings().autoRestoreOnExit, false);
+  assert.equal(store.getSettings().autoRestoreOnExit, true);
+  assert.equal(store.getSettings().exitAfterOptimization, false);
+  store.updateSettings({exitAfterOptimization:true});
+  assert.equal(store.getSettings().autoRestoreOnExit,false);
   store.updateSettings({ exitAfterOptimization: false, autoRestoreOnExit: true });
   assert.equal(store.getSettings().autoRestoreOnExit, true);
+});
+test('Explorer opt-out keeps the app monitoring; minimize behavior cannot be disabled',()=>{
+  const store=loadStore(null);store.updateSettings({keepExplorer:false,startMinimized:false});
+  assert.equal(store.getSettings().exitAfterOptimization,false);assert.equal(store.getSettings().startMinimized,true);
 });
 
 test('unknown fields and newer schemas are preserved and never overwritten',()=>{

@@ -33,7 +33,9 @@ try {
     Start-Sleep -Seconds 2
     $file = Get-Item $exe -ErrorAction SilentlyContinue
     $running = Get-Process | Where-Object { $_.Path -eq $exe }
-    if ($file -and $file.VersionInfo.ProductVersion -like "$version*" -and $running) {
+    $watchdogFile=Join-Path $installDir 'update-watchdog.json'
+    $watchdog=if(Test-Path $watchdogFile){Get-Content $watchdogFile -Raw | ConvertFrom-Json}else{$null}
+    if ($file -and $file.VersionInfo.ProductVersion -like "$version*" -and $running -and $watchdog.status -eq 'installed-and-restarted') {
       $verified = $true
       break
     }

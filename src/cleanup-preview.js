@@ -20,7 +20,9 @@
         fragment.appendChild(row);
       }
       list.appendChild(fragment);start.disabled=!preview.files.length;
-      if(!preview.files.length)list.textContent='Bu dar güvenlik kapsamına uyan dosya yok. Alan kazanmak için kapsam otomatik genişletilmez.';
+      if(!preview.files.length)list.textContent=preview.complete?'Tarama tamamlandı. Bu kapsamdaki yaş ve uzantı koşullarına uyan dosya yok; bilgisayarda hiç geçici dosya olmadığı anlamına gelmez.':'Tarama kısmen tamamlandı; okunamayan dosya veya klasörler var. 0 MB, bütün dosyaların kontrol edildiği anlamına gelmez.';
+      const diagnostic=document.getElementById('cleanup-disk-result');
+      diagnostic.textContent=(preview.diagnostics||[]).map(d=>`${d.path}: ${d.examined} dosya incelendi, ${d.recent} yeni, ${d.otherTypes} farklı uzantı, ${d.directories} alt klasör/bağlantı kapsam dışında; ${d.errors} okuma hatası${d.error?' ('+d.error+')':''}.`).join('\n') || 'Bu kullanıcı için uygun Temp/CrashDumps klasörü bulunamadı.';
     }catch(err){summary.textContent='Tarama yapılamadı: '+err.message;}
     return new Promise(resolve=>{
       close.onclick=()=>{modal.classList.remove('active');resolve({success:false,canceled:true,message:'Temizlik iptal edildi; dosya silinmedi.'});};

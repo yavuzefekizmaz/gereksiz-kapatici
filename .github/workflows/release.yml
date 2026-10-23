@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -29,6 +29,8 @@ jobs:
         run: npm test
       - name: Verify harmless Windows process fixtures
         run: node scripts/verify-safe-processes.js
+      - name: Verify independent selected restore after parent exits
+        run: node scripts/verify-exit-restore.js
       - name: Check release version
         shell: pwsh
         env:
@@ -50,6 +52,9 @@ jobs:
       - name: Verify one-shot quick boost and second instance forwarding
         shell: pwsh
         run: ./scripts/verify-quick-boost.ps1 -Exe (Resolve-Path 'dist/win-unpacked/Voldena Oyun Hizlandiricisi.exe').Path
+      - name: Verify themes, guided tour, game profile editing and safety confirmation
+        shell: pwsh
+        run: ./scripts/verify-interface.ps1 -Exe (Resolve-Path 'dist/win-unpacked/Voldena Oyun Hizlandiricisi.exe').Path
       - name: Verify packages and prepare source archive
         shell: pwsh
         run: |

@@ -2,33 +2,15 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const api = window.voldenaAPI;
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  api.getInstallInfo().then(info=>{const outcome={'installed-and-restarted':'Güncelleme kuruldu ve yeniden açıldı.','installation-canceled-or-failed':'Son kurulum iptal edildi veya başarısız oldu; tekrar deneyin.','verification-failed':'Son kurulum doğrulanamadı.','handoff-not-completed':'Kurulum devri tamamlanmadı.'};document.getElementById('install-location').textContent=info.type+' • v'+info.version+' • '+info.exe+' '+(outcome[info.lastUpdate?.status]||'');});
   let exitDeadline = null;
   function renderSessionResults(state) {
-    exitDeadline = state.exitDeadline;
-    const container = document.getElementById('session-results');
-    const report = state.report;
-    container.replaceChildren();
-    const items = [];
-    const outcomes = {closed:'Kapandı',partial:'Kısmen kapandı',failed:'Kapatılamadı',skipped:'Atlandı','not-running-or-inaccessible':'Çalışmıyor / erişilemiyor'};
-    for (const detail of report?.details || []) items.push(`${detail.name}: ${outcomes[detail.outcome] || detail.outcome}`);
-    for (const launch of report?.launches || []) items.push(`${launch.target}: ${launch.launched ? 'Başlatıldı' : 'Yeni örnek açılmadı'}`);
-    if (report && !items.length) items.push('İşlem tamamlandı; değiştirilecek uygulama yoktu.');
-    for (const text of items) {
-      const item = document.createElement('span'); item.className = 'session-result'; item.textContent = text; container.appendChild(item);
-    }
-    container.hidden = !items.length;
+    exitDeadline=state.exitDeadline;const container=document.getElementById('session-results');
+    container.replaceChildren();const report=state.report;container.hidden=!report;if(!report)return;
+    const closed=report.closedApps?.length||0,opened=report.launches?.filter(item=>item.launched).length||0;
+    container.textContent=closed+' uygulama kapatıldı · '+opened+' yardımcı uygulama başlatıldı'+(report.failed?.length?' · '+report.failed.length+' işlem tamamlanamadı':'')+'.';
+    const button=document.createElement('button');button.type='button';button.className='btn-link';button.textContent='İşlem Günlükleri';button.onclick=()=>{document.querySelector('.nav-item[data-tab="settings"]')?.click();const logs=document.getElementById('operation-logs');if(logs){logs.open=true;logs.scrollIntoView({block:'start'});}};container.appendChild(button);
   }
-  api.onStatusChange(state=>{
-    renderSessionResults(state);
-    exitDeadline=state.exitDeadline;
-    const outcomes={closed:'Kapandı',partial:'Kısmen kapandı',failed:'Kapatılamadı',skipped:'Atlandı','not-running-or-inaccessible':'Çalışmıyor veya erişilemiyor'};
-    const details=state.report?.details||[];
-    const el=document.getElementById('session-exit-status');
-    el.dataset.report=details.map(d=>d.name+': '+(outcomes[d.outcome]||d.outcome)).join(' • ');
-  });
-  setInterval(()=>{if(document.hidden)return;const el=document.getElementById('session-exit-status');const text=(exitDeadline?'Voldena '+Math.max(0,Math.ceil((exitDeadline-Date.now())/1000))+' saniye sonra kapanacak.':'Otomatik çıkış beklemiyor.')+' '+(el.dataset.report||'');if(el.textContent!==text)el.textContent=text;},1000);
-
+  api.onStatusChange(renderSessionResults);
 
   // Global State
   let closeTargetsState = [];
@@ -91,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const iconBox = document.getElementById('confirm-dialog-icon');
       const btnCancel = document.getElementById('btn-confirm-cancel');
       const btnAccept = document.getElementById('btn-confirm-accept');
+      const btnClose = document.getElementById('btn-close-confirm');
 
       if (!modal || !titleEl || !msgEl || !btnAccept || !btnCancel) {
         resolve(window.confirm(message.replace(/<[^>]*>/g, '')));
@@ -129,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         modal.classList.remove('active');
         btnAccept.removeEventListener('click', onAccept);
         btnCancel.removeEventListener('click', onCancel);
+        btnClose?.removeEventListener('click', onCancel);
         document.removeEventListener('keydown', onKeyDown);
         modal.removeEventListener('click', onOverlayClick);
         resolve(result);
@@ -145,12 +129,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           cleanUp(false);
         } else if (e.key === 'Enter' && !e.repeat) {
           e.preventDefault();
-          cleanUp(true);
+          cleanUp(isAlert || document.activeElement===btnAccept);
         }
       };
 
       btnAccept.addEventListener('click', onAccept);
       btnCancel.addEventListener('click', onCancel);
+      btnClose?.addEventListener('click', onCancel);
+      (isAlert?btnAccept:btnCancel).focus();
       modal.addEventListener('click', onOverlayClick);
       document.addEventListener('keydown', onKeyDown);
     });
@@ -303,19 +289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const res = await api.optimizeRam('low');
       await refreshHardware();
-      if (!res?.success) { await showAlertDialog(res?.message || 'RAM boşaltma devre dışı.', 'Bilgi', 'info'); btn.innerHTML=originalText; return; }
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> RAM Temizlendi!';
-
-      const freedFormatted = res && res.freedMb && res.freedMb > 0
-        ? (res.freedMb >= 1000 ? `<strong>${res.freedGb} GB</strong> (${res.freedMb} MB)` : `<strong>${res.freedMb} MB</strong>`)
-        : 'Önbellek ve Çalışma Kümesi';
-
-      await showAlertDialog(
-        `Arka plan süreçleri ve sistem bellek havuzu başarıyla boşaltıldı.<br><br>Toplam <strong>${freedFormatted}</strong> RAM anında serbest bırakılarak oyun performansına aktarıldı.`,
-        'RAM Başarıyla Temizlendi',
-        'success',
-        'fa-solid fa-broom'
-      );
+      await showAlertDialog(escapeHTML(res?.message||'İşlem tamamlanamadı.'),'RAM yükünü azalt',res?.success?'success':'info');
     } catch (err) {
       await showAlertDialog('RAM temizliği sırasında bir hata oluştu: ' + err.message, 'Hata', 'danger');
     }
@@ -326,8 +300,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('btn-emergency-explorer')?.addEventListener('click', async () => {
-    await api.startExplorer();
-    showToast('Explorer.exe kabuğu yeniden başlatıldı.', 'fa-solid fa-window-restore');
+    const started=await api.startExplorer();
+    showToast(started?'Explorer açık veya yeniden başlatma isteği tamamlandı.':'Explorer başlatılamadı; Ctrl+Shift+Esc → Yeni görev → explorer.exe kullanabilirsiniz.', 'fa-solid fa-window-restore');
   });
 
   // Manual Detect & Boost Button & Choice Modal
@@ -415,10 +389,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const result = await api.manualDetectAndBoost();
       if (result && result.detected) {
-        showToast(`${result.rule.alias || result.rule.name} algılandı ve oyun modu hemen aktifleştirildi! (${result.closedCount || 0} uygulama kapatıldı)`, 'fa-solid fa-gamepad');
+        showToast(`${result.rule.alias || result.rule.name} algılandı ve optimizasyon uygulandı. (${result.closedCount || 0} uygulama kapatıldı)`, 'fa-solid fa-gamepad');
       } else {
         renderManualBoostChoices(result.rules || []);
-        modalManualBoost?.classList.add('active');
+        const continueManually=await showConfirmDialog({title:'Oyun algılanamadı',message:'Oyununuz otomatik olarak algılanamadı. Manuel başlatmayı deneyebilirsiniz. Kapat düğmesi profil seçimini açar.',confirmText:'Kapat',cancelText:'Vazgeç',type:'danger'});
+        if(continueManually)modalManualBoost?.classList.add('active');
       }
     } catch (err) {
       showToast('Oyun algılama sırasında hata: ' + err.message, 'fa-solid fa-triangle-exclamation');
@@ -437,13 +412,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ruleNameVal = document.getElementById('val-active-rule-name');
       const ruleSubVal = document.getElementById('val-active-rule-sub');
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Optimizasyon: ${initialStatus.activeRule.alias || initialStatus.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = initialStatus.activeRule.alias || initialStatus.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `Seçili uygulamalar işlendi • Kapatılan: ${initialStatus.closedApps ? initialStatus.closedApps.length : 0} uygulama`;
+        ruleSubVal.textContent = `Profil işlemleri tamamlandı. Ayrıntılar İşlem Günlüklerinde.`;
       }
     }
   } catch (e) {}
@@ -457,13 +432,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.status === 'active') {
       if (dot) dot.className = 'status-dot active-game';
-      if (statusLabel) statusLabel.textContent = `Ultra Mod: ${data.activeRule.alias || data.activeRule.name}`;
+      if (statusLabel) statusLabel.textContent = `Optimizasyon: ${data.activeRule.alias || data.activeRule.name}`;
       if (ruleNameVal) {
         ruleNameVal.textContent = data.activeRule.alias || data.activeRule.name;
         ruleNameVal.style.color = 'var(--danger)';
       }
       if (ruleSubVal) {
-        ruleSubVal.textContent = `Seçili uygulamalar işlendi • Kapatılan: ${data.closedApps ? data.closedApps.length : 0} uygulama ${data.isAutoDetected ? '(Otomatik Oyun Algılama)' : ''}`;
+        ruleSubVal.textContent = `Profil işlemleri tamamlandı. Ayrıntılar İşlem Günlüklerinde.`;
       }
     } else {
       if (dot) dot.className = 'status-dot';
@@ -498,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       pill.innerHTML = `
         <i class="${iconClass}" style="font-size: 11px; opacity: 0.7;"></i>
-        <span>${item}</span>
+        <span>${escapeHTML(item)}</span>
         <i class="fa-solid fa-xmark app-pill-remove" title="Listeden Çıkar"></i>
       `;
 
@@ -633,12 +608,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       else if (platLower.includes('riot')) platformClass = 'platform-riot';
       else if (platLower.includes('xbox')) platformClass = 'platform-xbox';
 
+      card.tabIndex=0;card.setAttribute('role','button');card.title='Ayarlarını düzenlemek için tıklayın';
+      card.addEventListener('click',event=>{if(!event.target.closest('button'))void editDiscoveredGame(game);});
+      card.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void editDiscoveredGame(game);}});
       card.innerHTML = `
         <div class="discovered-game-left">
           <div class="discovered-game-icon"><i class="fa-solid fa-gamepad"></i></div>
           <div class="discovered-game-info">
-            <div class="discovered-game-title">${game.name}</div>
-            <div class="discovered-game-path">${game.path}</div>
+            <div class="discovered-game-title">${escapeHTML(game.name)}</div>
+            <div class="discovered-game-path">${escapeHTML(game.path)}</div>
           </div>
         </div>
         <div class="discovered-game-right">
@@ -683,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  await loadDiscoveredGames();
+  void loadDiscoveredGames();
 
   api.onGamesScanned((games) => {
     if (games && Array.isArray(games)) {
@@ -704,7 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Taranıyor...';
 
     await api.scanGameLibraries();
-    await loadDiscoveredGames(true);
+    await loadDiscoveredGames(false);
 
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Tarandı!';
     showToast(`${cachedDiscoveredGames.length} adet oyun başarıyla tespit edildi.`);
@@ -795,8 +773,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="picker-item-left">
           <div class="picker-item-icon"><i class="${app.icon || 'fa-solid fa-gamepad'}"></i></div>
           <div class="picker-item-text">
-            <div class="picker-item-name">${app.name}</div>
-            <div class="picker-item-sub">${app.category} • ${app.exe}</div>
+            <div class="picker-item-name">${escapeHTML(app.name)}</div>
+            <div class="picker-item-sub">${app.category} • ${escapeHTML(app.exe)}</div>
           </div>
         </div>
         <div class="picker-item-right">
@@ -849,7 +827,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="picker-item-left">
           <div class="picker-item-icon"><i class="fa-solid fa-window-maximize"></i></div>
           <div class="picker-item-text">
-            <div class="picker-item-name">${app.name}</div>
+            <div class="picker-item-name">${escapeHTML(app.name)}</div>
             <div class="picker-item-sub">${app.exe ? app.exe : (app.publisher || 'Yüklü Program')}</div>
           </div>
         </div>
@@ -1115,7 +1093,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } else if (pickerTargetMode === 'protected') {
       await api.updateProtectedApps(selectedArray);
-      await renderProtectedApps();
+      document.getElementById('search-protected')?.addEventListener('input',()=>void renderProtectedApps());
+  window.addEventListener('protected-apps-changed',()=>void renderProtectedApps());
+  await renderProtectedApps();
       showToast(`Korumalı uygulamalar listesi güncellendi (${selectedArray.length} adet).`);
     }
 
@@ -1141,14 +1121,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (ruleToEdit) {
       modalRuleTitle.textContent = 'Kuralı / Oyun Ayarını Düzenle';
-      editingIdInput.value = ruleToEdit.id;
+      editingIdInput.value = ruleToEdit.id || '';
       document.getElementById('rule-form-name').value = ruleToEdit.name || '';
       document.getElementById('rule-form-trigger').value = ruleToEdit.triggerProcess || '';
       document.getElementById('rule-form-level').value = ruleToEdit.optimizationLevel || 'medium';
-      if (chkKeepExplorer) chkKeepExplorer.checked = ruleToEdit.keepExplorer !== false;
+      if (chkKeepExplorer) chkKeepExplorer.checked = ruleToEdit.keepExplorer !== false || ruleToEdit.desktopClosureConsentVersion!==1;
 
       closeTargetsState = [...(ruleToEdit.closeTargets || [])];
       launchTargetsState = [...(ruleToEdit.launchTargets || [])];
+      document.getElementById('rule-form-exit-launch').value=(ruleToEdit.exitLaunchTargets||[]).join('\n');
     } else {
       modalRuleTitle.textContent = 'Yeni Oyun Kuralı Ekle';
       editingIdInput.value = '';
@@ -1159,11 +1140,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       closeTargetsState = [];
       launchTargetsState = [];
+      document.getElementById('rule-form-exit-launch').value='';
     }
 
     updateCloseTargetsPills();
     updateLaunchTargetsPills();
   };
+  let editingDiscoveredGame=false;
+  document.getElementById('btn-browse-exit-launch')?.addEventListener('click',async()=>{const file=await api.selectFile();if(file&&/\.exe$/i.test(file)){const input=document.getElementById('rule-form-exit-launch');input.value=[...new Set([...input.value.split('\n').filter(Boolean),file])].join('\n');}});
+  async function editDiscoveredGame(game) {
+    const executables=[...new Set([game.exe,...(game.executables||[])].filter(exe=>typeof exe==='string'&&/\.exe$/i.test(exe)&&!/(crash|unins|setup|wallpaper|launcher|service)/i.test(exe)))];
+    const existing=(await api.getRules()).find(rule=>executables.some(exe=>exe.toLowerCase()===rule.triggerProcess?.toLowerCase()));
+    let trigger=existing?.triggerProcess||executables[0];
+    if(!trigger){const selected=await api.selectFile();if(!selected||!/\.exe$/i.test(selected))return;trigger=selected.split(/[\\/]/).at(-1);}
+    editingDiscoveredGame=true;
+    openRuleModal(existing||{name:game.name,triggerProcess:trigger,optimizationLevel:'medium',keepExplorer:true,closeTargets:[],launchTargets:[]});
+  }
+  const desktopWarning={title:'Explorer kapatılsın mı?',message:'Görev çubuğu, masaüstü ve açık Dosya Gezgini pencereleri geçici olarak kapanır. Pencereler arası geçiş etkilenebilir; açık dosya kopyalamalarını önce bitirin.<br><br>Oyun/uygulama bittiğinde veya Voldena kapanırsa ayrı kurtarma görevi Explorer’ı geri açar. Ana sayfadaki Explorer Başlat, tepsi menüsü veya <strong>Ctrl+Alt+R</strong> ile de açabilirsiniz. Bu seçenek varsayılan kapalıdır; otomatik Voldena çıkışı kapatılır.',confirmText:'Evet, devam et',cancelText:'Hayır, geri dön',type:'danger'};
+  chkKeepExplorer?.addEventListener('change',async event=>{if(!event.target.checked&&!await showConfirmDialog(desktopWarning))event.target.checked=true;});
+  document.querySelectorAll('[data-desktop-info]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();void showAlertDialog(desktopWarning.message,'Explorer koruması','info');}));
 
   const closeRuleModal = () => {
     modalRule.classList.remove('active');
@@ -1188,6 +1183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       await showAlertDialog('Lütfen kural adı ve tetikleyici oyun (.exe) adını girin.', 'Eksik Bilgi', 'warning');
       return;
     }
+    const exitTargets=document.getElementById('rule-form-exit-launch').value.split('\n').map(value=>value.trim()).filter(Boolean);
+    if(exitTargets.length>20||exitTargets.some(target=>!/\.exe$/i.test(target)||target.split(/[\\/]/).at(-1).toLowerCase()===trigger.toLowerCase())){
+      await showAlertDialog('Oyun bitişi listesine en fazla 20 uygulama EXE’si ekleyin; oyunun kendisini yeniden başlatma hedefi yapmayın.','Bitiş uygulamaları','warning');return;
+    }
 
     const ruleData = {
       name,
@@ -1196,8 +1195,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       enabled: true,
       closeTargets: closeTargetsState,
       launchTargets: launchTargetsState,
+      exitLaunchTargets:exitTargets,
       optimizationLevel: level,
-      keepExplorer: keepExp
+      keepExplorer: keepExp,
+      desktopClosureConsentVersion:keepExp?0:1
     };
 
     if (editingId) {
@@ -1210,6 +1211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     closeRuleModal();
     renderRules();
+    if(editingDiscoveredGame){document.querySelector('.nav-item[data-tab="game-optimization"]')?.click();editingDiscoveredGame=false;}
   });
 
   // ==========================================
@@ -1268,23 +1270,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         summaryEl.className = 'rule-item interactive';
         summaryEl.innerHTML = `
           <div class="rule-info">
-            <div class="rule-name">${rule.name}</div>
+            <div class="rule-name">${escapeHTML(rule.name)}</div>
             <div class="rule-details">
-              <span>Tetikleyici: <strong>${rule.triggerProcess}</strong></span>
+              <span>Tetikleyici: <strong>${escapeHTML(rule.triggerProcess)}</strong></span>
               ${rule.closeTargets && rule.closeTargets.length > 0 ? `<span>• Kapatılacak: <strong>${rule.closeTargets.length}</strong></span>` : ''}
               ${rule.launchTargets && rule.launchTargets.length > 0 ? `<span>• Açılacak: <strong>${rule.launchTargets.length}</strong></span>` : ''}
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
             ${levelBadge}
-            <label class="switch" onclick="event.stopPropagation();">
+            <label class="switch">
               <input type="checkbox" class="toggle-rule" data-id="${rule.id}" ${rule.enabled ? 'checked' : ''}>
               <span class="slider"></span>
             </label>
           </div>
         `;
 
-        summaryEl.addEventListener('click', () => openRuleModal(rule));
+        summaryEl.addEventListener('click', event => {if(!event.target.closest('label,button,input'))openRuleModal(rule);});
         summaryContainer.appendChild(summaryEl);
       }
 
@@ -1294,9 +1296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         itemEl.className = 'rule-item';
         itemEl.innerHTML = `
           <div class="rule-info">
-            <div class="rule-name">${rule.name}</div>
+            <div class="rule-name">${escapeHTML(rule.name)}</div>
             <div class="rule-details">
-              <span>Tetikleyici: <strong>${rule.triggerProcess}</strong></span>
+              <span>Tetikleyici: <strong>${escapeHTML(rule.triggerProcess)}</strong></span>
               <span>• Kapatılacak: <strong>${rule.closeTargets ? rule.closeTargets.length : 0}</strong></span>
               <span>• Açılacak: <strong>${rule.launchTargets ? rule.launchTargets.length : 0}</strong></span>
               <span>•</span>
@@ -1321,7 +1323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         itemEl.querySelector('.btn-delete-rule').addEventListener('click', async () => {
           const confirmed = await showConfirmDialog({
             title: 'Kuralı Sil',
-            message: `<strong>"${rule.name}"</strong> kuralını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
+            message: `<strong>"${escapeHTML(rule.name)}"</strong> kuralını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
             icon: 'fa-solid fa-trash-can',
             confirmText: 'Evet, Sil',
             cancelText: 'Vazgeç',
@@ -1329,14 +1331,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           if (confirmed) {
             await api.deleteRule(rule.id);
-            showToast(`${rule.name} silindi.`, 'fa-solid fa-trash');
+            showToast(`${escapeHTML(rule.name)} silindi.`, 'fa-solid fa-trash');
             await renderRules();
           }
         });
         itemEl.querySelector('.toggle-rule').addEventListener('change', async (e) => {
           rule.enabled = e.target.checked;
           await api.updateRule(rule.id, rule);
-          showToast(`${rule.name} ${rule.enabled ? 'etkinleştirildi' : 'devre dışı bırakıldı'}.`);
+          showToast(`${escapeHTML(rule.name)} ${rule.enabled ? 'etkinleştirildi' : 'devre dışı bırakıldı'}.`);
         });
 
         return itemEl;
@@ -1378,7 +1380,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   updatePresetCardsUI(currentPreset);
 
   document.querySelectorAll('.preset-card').forEach(card => {
-    card.addEventListener('click', async () => {
+    card.addEventListener('click', async event => {
+      if(event.target.closest('.preset-sub-toggle'))return;
       const level = card.getAttribute('data-preset');
       if (level === currentPreset) return; // Prevent spamming when already selected!
 
@@ -1403,13 +1406,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    apps.forEach(app => {
+    apps.filter(app=>app.toLowerCase().includes((document.getElementById('search-protected')?.value||'').toLowerCase())).forEach(app => {
       const tag = document.createElement('div');
       tag.className = 'protected-tag';
       tag.innerHTML = `
         <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i>
-        <span>${app}</span>
-        <i class="fa-solid fa-xmark protected-tag-remove" data-app="${app}" title="Listeden Kaldır"></i>
+        <span>${escapeHTML(app)}</span>
+        <button type="button" class="protected-tag-remove" aria-label="Korumadan çıkar">×</button>
       `;
 
       tag.querySelector('.protected-tag-remove').addEventListener('click', async () => {
@@ -1493,11 +1496,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (chkAutostart) chkAutostart.checked = !!settings.autoStartOnBoot;
   if (chkAutoExit) chkAutoExit.checked=settings.exitAfterOptimization!==false;
-  chkAutoExit?.addEventListener('change',async e=>{const updated=await api.updateSettings({exitAfterOptimization:e.target.checked});if(!e.target.checked)exitDeadline=null;if(chkAutoRestore){chkAutoRestore.disabled=e.target.checked;chkAutoRestore.checked=updated.autoRestoreOnExit;}});
+  chkAutoExit?.addEventListener('change',async e=>{const updated=await api.updateSettings({exitAfterOptimization:e.target.checked});if(!e.target.checked)exitDeadline=null;if(chkAutoRestore){chkAutoRestore.disabled=false;chkAutoRestore.checked=updated.autoRestoreOnExit;}});
   if (chkMinimized) chkMinimized.checked = !!settings.startMinimized;
   if (chkNotifications) chkNotifications.checked = !!settings.notifyOnAction;
-  if (chkAutoRestore) {chkAutoRestore.checked = settings.autoRestoreOnExit === true && settings.exitAfterOptimization === false;chkAutoRestore.disabled=settings.exitAfterOptimization!==false;}
-  if (chkSmartSweep) chkSmartSweep.checked = !!settings.smartSweep;
+  if (chkAutoRestore) {chkAutoRestore.checked = settings.autoRestoreOnExit === true && settings.exitAfterOptimization === false;chkAutoRestore.disabled=false;}
+  if (chkSmartSweep) chkSmartSweep.checked = settings.selectedBulkCloseEnabled === true;
   if (chkAutoGameDetection) chkAutoGameDetection.checked = settings.autoGameDetection !== false;
   if (chkAutoGameDetectionSettings) chkAutoGameDetectionSettings.checked = settings.autoGameDetection !== false;
   if (chkKeepExplorerSettings) chkKeepExplorerSettings.checked = settings.keepExplorer !== false;
@@ -1519,11 +1522,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   chkAutoRestore?.addEventListener('change', async (e) => {
     const updated = await api.updateSettings({ autoRestoreOnExit: e.target.checked });
     e.target.checked = updated.autoRestoreOnExit;
+    if(chkAutoExit)chkAutoExit.checked=updated.exitAfterOptimization!==false;
     showToast(e.target.checked ? 'Otomatik geri açma (Auto-restore) etkinleştirildi.' : 'Otomatik geri açma devre dışı bırakıldı.');
   });
   chkSmartSweep?.addEventListener('change', (e) => {
-    api.updateSettings({ smartSweep: e.target.checked });
-    showToast(e.target.checked ? 'Smart-Sweep arka plan temizliği etkinleştirildi.' : 'Smart-Sweep devre dışı bırakıldı.');
+    api.updateSettings({ selectedBulkCloseEnabled: e.target.checked });
+    showToast(e.target.checked ? 'Seçili uygulamalar topluca kapatılacak.' : 'Ek toplu kapatma kapatıldı.');
   });
   chkAutoGameDetection?.addEventListener('change', (e) => {
     api.updateSettings({ autoGameDetection: e.target.checked });
@@ -1535,9 +1539,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (chkAutoGameDetection) chkAutoGameDetection.checked = e.target.checked;
     showToast(e.target.checked ? 'Akıllı Otomatik Oyun Algılama etkinleştirildi.' : 'Otomatik Oyun Algılama devre dışı bırakıldı.');
   });
-  chkKeepExplorerSettings?.addEventListener('change', (e) => {
-    api.updateSettings({ keepExplorer: e.target.checked });
-    showToast(e.target.checked ? 'Ultra modda Explorer.exe açık tutulacak.' : 'Ultra modda Explorer.exe durdurulacak.');
+  chkKeepExplorerSettings?.addEventListener('change', async e => {
+    if(!e.target.checked&&!await showConfirmDialog(desktopWarning)){e.target.checked=true;return;}
+    const updated=await api.updateSettings({ keepExplorer: e.target.checked,desktopClosureConsentVersion:e.target.checked?0:1 });
+    if(chkAutoExit)chkAutoExit.checked=updated.exitAfterOptimization!==false;
+    showToast(e.target.checked ? 'Explorer.exe korunacak.' : 'Açılan uygulamada Explorer kurtarma korumasıyla geçici kapatılabilecek.');
   });
 
   // ==========================================
@@ -1748,6 +1754,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ==========================================================================
   let currentSelectedDrive = 'C:';
   let cachedDrives = [];
+  const diskScanCache = new window.DiskScanCache();
 
   const switchToDiskTab = (driveLetter = null) => {
     navItems.forEach(n => n.classList.remove('active'));
@@ -1926,7 +1933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (subEl) {
       if (selected) {
-        subEl.textContent = `${selected.name} üzerinde geçici Windows önbelleği, hata dökümleri ve geri dönüşüm kutusu artıkları.`;
+        subEl.textContent = 'Kullanıcı Temp ve CrashDumps klasörlerindeki eski geçici dosyalar incelenir. Windows, oyunlar ve geri dönüşüm kutusu kapsam dışıdır.';
       } else {
         subEl.textContent = `Seçili sürücü: ${currentSelectedDrive}`;
       }
@@ -2013,12 +2020,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 3. Large Files Scanner (Always sorted descending by size)
-  const scanLargeFilesForCurrentDrive = async () => {
+  const scanLargeFilesForCurrentDrive = async (force = false) => {
     const container = document.getElementById('large-files-container');
     const selectMinSize = document.getElementById('select-large-file-min-size');
     const minMb = parseInt(selectMinSize?.value || '100', 10);
 
     if (!container) return;
+    const drive = currentSelectedDrive;
+    const cacheKey = drive+':'+minMb;
+    if(!force && !diskScanCache.has(cacheKey)) {
+      container.textContent='Bu kapsam henüz taranmadı. Başlatmak için Diski Tara düğmesine basın. Sekme değiştirirken önceki sonuçlar korunur.';
+      return;
+    }
     container.innerHTML = `
       <div style="padding: 34px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
         <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary); margin-bottom: 10px; display: block;"></i>
@@ -2027,14 +2040,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     try {
-      const files = await api.scanLargeFiles(currentSelectedDrive, minMb);
+      const files = await diskScanCache.get(cacheKey,force,()=>api.scanLargeFiles(drive,minMb));
+      if(currentSelectedDrive!==drive || Number(selectMinSize?.value||100)!==minMb)return;
       container.innerHTML = '';
 
       if (!files || files.length === 0) {
         container.innerHTML = `
           <div style="padding: 38px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
             <i class="fa-solid fa-circle-check" style="font-size: 26px; color: var(--success); margin-bottom: 8px; display: block;"></i>
-            <span>Bu sürücüde ${minMb} MB ve üzeri yer kaplayan dosya bulunamadı. Diskiniz gayet temiz!</span>
+            <span>Taranan kullanıcı klasörlerinde ${minMb} MB ve üzeri dosya bulunamadı. Erişilemeyen ve kapsam dışındaki klasörler dahil değildir.</span>
           </div>
         `;
         return;
@@ -2050,8 +2064,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <i class="${file.icon}"></i>
             </div>
             <div class="large-file-details">
-              <div class="large-file-name" title="${file.name}">${file.name}</div>
-              <div class="large-file-path" title="${file.path}">${file.path}</div>
+              <div class="large-file-name" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</div>
+              <div class="large-file-path" title="${escapeHTML(file.path)}">${escapeHTML(file.path)}</div>
             </div>
           </div>
           <div class="large-file-right">
@@ -2061,7 +2075,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <button class="btn btn-secondary large-file-btn btn-open-folder" title="Dosya Gezgini'nde Konumu Göster">
               <i class="fa-solid fa-folder-open"></i>
             </button>
-            <button class="btn btn-danger large-file-btn btn-delete-file" title="Bu Dosyayı Kalıcı Olarak Sil">
+            <button class="btn btn-danger large-file-btn btn-delete-file" title="Geri dönüşüm kutusuna taşı">
               <i class="fa-solid fa-trash"></i> Sil
             </button>
           </div>
@@ -2085,7 +2099,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
               const res = await api.deleteTargetFile(file.path);
               if (res && res.success) {
-                showToast(`Dosya silindi (${file.displaySize} alan açıldı)!`, 'fa-solid fa-trash');
+                showToast('Dosya geri dönüşüm kutusuna taşındı. Alan, kutu boşaltıldığında açılır.', 'fa-solid fa-trash');
+                diskScanCache.remove(file.path);
                 row.remove();
                 await loadDashboardDrives();
                 const updatedDrives = await api.getDrivesInfo();
@@ -2111,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   document.getElementById('btn-scan-large-files')?.addEventListener('click', () => {
-    scanLargeFilesForCurrentDrive();
+    scanLargeFilesForCurrentDrive(true);
   });
   document.getElementById('select-large-file-min-size')?.addEventListener('change', () => {
     scanLargeFilesForCurrentDrive();

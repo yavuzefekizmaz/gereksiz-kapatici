@@ -62,10 +62,17 @@ test('machine scope remains explicit and /D stays last; watchdog launch is confi
   assert.equal(calls.length,2);assert.equal(calls[0].args.at(-1),`/D=${path.dirname(exe)}`);
   assert.ok(calls[0].args.includes('/allusers'));assert.equal(calls[1].file,'powershell.exe');
   assert.equal(calls[1].options.windowsHide,true);
-  const script=Buffer.from(calls[1].args.at(-1),'base64').toString('utf16le');
+  const launcher=Buffer.from(calls[1].args.at(-1),'base64').toString('utf16le');
+  assert.match(launcher,/-WindowStyle Hidden/);
+  const workerFile=launcher.match(/ReadAllText\('([^']+)'\)/)[1];
+  t.after(()=>fs.rmSync(workerFile,{force:true}));
+  const encodedWorker=fs.readFileSync(workerFile,'utf8');
+  const script=Buffer.from(encodedWorker,'base64').toString('utf16le');
   assert.match(script,/installed-and-restarted/);assert.match(script,/installation-canceled-or-failed/);
   if(process.platform==='win32'){
-    const parser=`$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseInput([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('${calls[1].args.at(-1)}')),[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|% Message;exit 1}`;
+    const parserFile=path.join(path.dirname(info.downloadedFile),'watchdog-test.ps1');
+    fs.writeFileSync(parserFile,script);
+    const parser=`$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile('${parserFile.replace(/'/g,"''")}',[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|% Message;exit 1}`;
     require('child_process').execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(parser,'utf16le').toString('base64')],{windowsHide:true,timeout:10000});
   }
 });

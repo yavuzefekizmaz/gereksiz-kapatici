@@ -2,10 +2,12 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voldena Oyun Hızlandırıcısı</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/refinement.css">
+  <link rel="stylesheet" href="styles/experience.css">
   <link rel="stylesheet" href="vendor/fontawesome/package/css/all.min.css">
 </head>
 <body>
@@ -83,7 +85,7 @@
           </div>
           <div>
             <h1 class="section-title">Canlı Sistem & Ultra Oyun Paneli</h1>
-            <p class="section-desc">Yeni başlayan oyunlarda seçtiğiniz uygulamalar kapatılır, yardımcı programlar açılır. İsteğe bağlı otomatik çıkış, işlemler bittikten 60 saniye sonra gerçekleşir.</p>
+            <p class="section-desc">Yeni başlayan oyunlarda seçtiğiniz uygulamalar kapatılır, yardımcı programlar açılır. İsteğe bağlı otomatik çıkış, işlemler bittikten 3 dakika sonra gerçekleşir.</p>
           </div>
         </div>
 
@@ -114,7 +116,7 @@
             <!-- CPU Metric -->
             <div style="margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px;">
-                <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;" title="Bilgisayardaki tüm uygulamaların toplam CPU kullanımı; 3 saniyelik ölçüm aralığı."><i class="fa-solid fa-bolt" style="color: #3b82f6; margin-right: 4px;"></i>Toplam CPU Yükü · 3 sn</span>
+                <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;" title="Bilgisayardaki tüm uygulamaların toplam CPU kullanımı; 3 saniyelik ölçüm aralığı."><i class="fa-solid fa-bolt" style="color: #3b82f6; margin-right: 4px;"></i>Toplam CPU Yükü</span>
                 <span id="val-cpu-percent-text" style="font-size: 13px; font-weight: 700; color: #00f0ff;">0%</span>
               </div>
               <div class="progress-bar-bg" style="height: 5px; margin: 2px 0 4px 0;">
@@ -187,7 +189,7 @@
               <i class="fa-solid fa-gamepad"></i> Aktif Oyunu Algıla & Hızlandır
             </button>
             <button class="btn btn-primary" id="btn-quick-ram">
-              <i class="fa-solid fa-gauge-high"></i> Bellek Yönetimi Bilgisi
+              <i class="fa-solid fa-gauge-high"></i> RAM Yükünü Azalt
             </button>
             <button class="btn btn-secondary btn-open-rule-modal" data-mode="new">
               <i class="fa-solid fa-plus"></i> Yeni Oyun Kuralı Ekle
@@ -237,11 +239,11 @@
 
           <div class="setting-row">
             <div class="setting-text">
-              <div class="setting-title">Toplu süreç kapatma (güvenlik nedeniyle devre dışı)</div>
-              <div class="setting-desc">Toplu süreç kapatma devre dışıdır. Yalnızca açıkça seçilen desteklenen uygulamalar işlenir.</div>
+              <div class="setting-title">Seçili arka plan uygulamalarını topluca kapat</div>
+              <div class="setting-desc">Yalnızca aşağıda seçtiğiniz desteklenen uygulamalar profil hedeflerine eklenir. Korumalı uygulamalar, oyunlar, sürücüler ve Windows hizmetleri kapanmaz. <button type="button" class="btn btn-secondary" id="btn-configure-bulk">Kapatılacakları seç</button></div>
             </div>
             <label class="switch">
-              <input type="checkbox" id="setting-smart-sweep" disabled>
+              <input type="checkbox" id="setting-smart-sweep">
               <span class="slider"></span>
             </label>
           </div>
@@ -330,7 +332,7 @@
             Bu listedeki uygulamalar seçili kapatma hedefleri arasında olsalar da korunur.
           </p>
 
-          <div class="protected-add-bar">
+          <input id="search-protected" class="form-input" type="search" placeholder="Korumalı uygulamalarda ara…" aria-label="Korumalı uygulamalarda ara"><div class="protected-add-bar">
             <input type="text" class="form-input" id="input-protected-app" placeholder="Örn: anydesk.exe, code.exe..." style="flex: 1;">
             <button class="btn btn-secondary" id="btn-browse-protected-picker" type="button">
               <i class="fa-solid fa-list-check"></i> Uygulama Seçici
@@ -472,13 +474,13 @@
               </div>
 
               <!-- Integrated Explorer.exe Toggle directly inside Ultra Mode Card -->
-              <div class="preset-sub-toggle" onclick="event.stopPropagation();" title="Yüksek optimizasyon modunda bile Windows masaüstü kabuğunu açık tutar.">
+              <div class="preset-sub-toggle" title="Yüksek optimizasyon modunda bile Windows masaüstü kabuğunu açık tutar.">
                 <div class="sub-toggle-text">
-                  <span class="sub-toggle-title"><i class="fa-solid fa-window-maximize"></i> Explorer.exe her zaman korunur</span>
+                  <span class="sub-toggle-title"><i class="fa-solid fa-window-maximize"></i> Explorer.exe açık kalsın <button type="button" class="info-button" data-desktop-info aria-label="Explorer koruması hakkında bilgi">i</button></span>
                   <span class="sub-toggle-desc">Görev çubuğu ve masaüstünü koru</span>
                 </div>
                 <label class="switch switch-sm">
-                  <input type="checkbox" id="setting-keep-explorer" disabled checked>
+                  <input type="checkbox" id="setting-keep-explorer" checked>
                   <span class="slider"></span>
                 </label>
               </div>
@@ -518,15 +520,12 @@
                 <i class="fa-solid fa-inbox"></i>
               </div>
               <div class="setting-text">
-                <div class="setting-title">Sistem Tepsisine (Tray) Küçült</div>
+                <div class="setting-title">Kapatınca sistem tepsisinde izlemeye devam eder</div>
                 <div class="setting-desc">Kapat (X) butonuna basıldığında uygulama kapanmaz, arka planda oyunları izlemeye devam eder.</div>
               </div>
             </div>
             <div class="setting-item-right">
-              <label class="switch">
-                <input type="checkbox" id="setting-minimized">
-                <span class="slider"></span>
-              </label>
+              <span class="always-on-badge">Her zaman açık</span>
             </div>
           </div>
 
@@ -572,11 +571,11 @@
         <div class="glass-card setting-card-item">
           <div class="setting-item-left"><div class="setting-text">
             <div class="setting-title">İşlemler tamamlanınca Voldena'yı otomatik kapat</div>
-            <div class="setting-desc">İzleme başladıktan sonra açılan oyunlarda, işlemler bitince 60 saniye beklenir. Açılışta zaten çalışan oyunlar çıkış başlatmaz.</div>
+            <div class="setting-desc">İzleme başladıktan sonra açılan oyunlarda, işlemler bitince 3 dakika beklenir. Açılışta zaten çalışan oyunlar çıkış başlatmaz.</div>
           </div></div><label class="switch"><input type="checkbox" id="setting-auto-exit"><span class="slider"></span></label>
         </div>
-        <div class="glass-card" id="session-exit-status" style="padding:12px;margin-top:12px">Yeni oyun başlangıcı bekleniyor.</div>
-        <div class="glass-card" id="install-location" style="padding:12px;margin-top:12px;overflow-wrap:anywhere"></div>
+
+
         <!-- Section: Version & Cloud / Local Update Card -->
         <div class="glass-card" style="margin-top: 20px; padding: 22px;">
           <div class="card-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -715,10 +714,16 @@
 
       <!-- Optimization Level -->
       <div class="form-group">
+        <label class="form-label" for="rule-form-exit-launch">Oyun / uygulama bitince açılacak uygulamalar</label>
+        <p class="setting-desc">Her satıra bir .exe adı veya tam EXE konumu ekleyin. Yalnızca bu liste açılır; tüm uygulamaları geri açma kapalı kalabilir. Voldena kapansa da ayrı izleyici oyun bitişini bekler.</p>
+        <textarea class="form-input" id="rule-form-exit-launch" rows="3" placeholder="Örnek: D:\SteamLibrary\steamapps\common\wallpaper_engine\wallpaper64.exe"></textarea>
+        <button type="button" class="btn btn-secondary" id="btn-browse-exit-launch">Oyun bitişine uygulama ekle…</button>
+      </div>
+      <div class="form-group">
         <label class="form-label">Optimizasyon Seviyesi</label>
         <select class="form-select" id="rule-form-level">
-          <option value="low">Düşük (Yalnızca RAM Temizliği)</option>
-          <option value="medium" selected>Orta (RAM + Belirtilen Uygulamaları Kapat + Geri Aç)</option>
+          <option value="low">Düşük (Uygulama kapatma yok; yardımcıları aç)</option>
+          <option value="medium" selected>Orta (Seçili uygulamaları kapat, yardımcıları aç)</option>
           <option value="high">Yüksek (Güvenli seçili uygulama kapatma)</option>
         </select>
       </div>
@@ -726,11 +731,11 @@
       <!-- Keep Explorer Toggle -->
       <div class="form-group keep-explorer-row">
         <div class="setting-text">
-          <div class="setting-title">Explorer.exe ve Windows arayüzü daima korunur</div>
+          <div class="setting-title">Explorer.exe açık kalsın <button type="button" class="info-button" data-desktop-info aria-label="Explorer hakkında bilgi">i</button></div>
           <div class="setting-desc">Yüksek modda bile Windows görev çubuğu açık kalır.</div>
         </div>
         <label class="switch">
-          <input type="checkbox" id="rule-form-keep-explorer" disabled checked checked>
+          <input type="checkbox" id="rule-form-keep-explorer" checked>
           <span class="slider"></span>
         </label>
       </div>
@@ -877,6 +882,7 @@
   <!-- MODAL 4: CUSTOM DARK CONFIRMATION MODAL -->
   <div class="modal-overlay" id="modal-confirm">
     <div class="modal-box modal-box-confirm">
+      <button type="button" class="modal-close-btn confirm-dialog-close" id="btn-close-confirm" aria-label="Kapat">×</button>
       <div class="confirm-icon-box" id="confirm-dialog-icon">
         <i class="fa-solid fa-triangle-exclamation"></i>
       </div>
@@ -898,7 +904,7 @@
       <div class="modal-header">
         <div class="modal-title">
           <i class="fa-solid fa-gamepad" style="color: var(--primary);"></i>
-          <span>Oyun Modunu Manuel Başlat</span>
+          <span>Optimizasyonu Manuel Başlat</span>
         </div>
         <button class="modal-close-btn" id="btn-close-manual-boost"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -932,6 +938,8 @@
   </div>
   <script src="cleanup-preview.js"></script>
   <script src="app-picker-data.js"></script>
+  <script src="disk-scan-cache.js"></script>
   <script src="renderer.js"></script>
+  <script src="experience.js"></script>
 </body>
 </html>

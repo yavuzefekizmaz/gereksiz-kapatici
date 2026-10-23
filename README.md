@@ -1,4 +1,22 @@
-# ⚡ Voldena Game Booster
+# Voldena Oyun Hızlandırıcı — 1.5
+
+Windows için oyun ve uygulama profilleri. Kapatılacak, oyunla açılacak ve oyun bitince açılacak uygulamalar ayrı listelerdir. Otomatik algılanan oyuna tıklayarak özel profil oluşturabilirsiniz.
+
+- Normal otomatik çıkış artık işlemler bittikten **3 dakika** sonradır. Hızlandır ve Kapat masaüstü kısayolu ise açık oyunu hemen işler ve çıkar.
+- Profildeki **Oyun bitince açılacak uygulamalar** listesi bağımsız penceresiz izleyiciyle çalışır; Voldena kapansa da yalnızca seçtikleriniz açılır. Wallpaper Engine resmî stop/play komutlarıyla yönetilir.
+- Kısa sonuç ana ekranda, ayrıntılar **Ayarlar → İşlem Günlükleri** içindedir. **Bunu bir daha kapatma** düğmesi uygulamayı beyaz listeye ekler.
+- Disk taraması düğmeyle başlar; sonuçlar sekme değiştirince korunur. Geçici dosya önizlemesi eksik/başarısız okumayla gerçekten boş sonucu ayırır.
+- Sayfalar arasında ilerleyen tanıtım turu, on tema ve özel arka plan/menü/üst çubuk/vurgu renkleri vardır.
+- Toplu kapatma yalnızca seçili desteklenen kullanıcı uygulamalarını işler. Yüksek CPU/RAM önerileri kullanıcı onayı ister. Windows, sürücüler, oyunlar ve korumalı uygulamalar kapanmaz.
+- Explorer her seviyede varsayılan korunur; geçici kapatma yeni açık onay ve ayrı kurtarma izleyicisi gerektirir. Ctrl+Alt+R, tepsi ve ana sayfa kurtarma seçenekleri bulunur. Sistem genelinde zorla RAM boşaltılmaz.
+
+Paketler dijital olarak imzalı değildir. SHA256SUMS indirme bütünlüğünü kontrol eder; bağımsız yayıncı kimlik doğrulaması değildir. Kesin FPS artışı veya tüm donanım/sürücü sorunlarının olmayacağı vaat edilmez.
+
+[Güncel indirmeler](https://github.com/yavuzefekizmaz/gereksiz-kapatici/releases/latest) · [Kullanıcı test adımları](TEST_GUIDE_TR.md) · [Sürüm notları](RELEASE_NOTES.md)
+
+Geliştirme için Node.js 24 kullanılır. Aşağıdaki bölümler önceki sürümlerin tarihsel açıklamalarını da içerir; güncel davranış yukarıdaki 1.5 maddeleridir.
+
+## Önceki sürümlerin notları
 
 [🇺🇸 English version](README.en.md)
 

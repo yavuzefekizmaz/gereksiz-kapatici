@@ -24,6 +24,10 @@ async function cleanup() {
     const result=await Optimizer.killProcesses(['spotify.exe'],[],{allowedPaths:[spotify]});
     assert.ok(result.killed.includes('spotify.exe'),'Harmless fixture did not close normally');
     assert.ok(result.closedApps.every(item=>item.path.toLowerCase()===spotify.toLowerCase()));
+    await Optimizer.relaunchProcesses(result.closedApps);await delay(1300);
+    assert.equal((await Scanner.getRunningProcesses({throwOnError:true})).filter(p=>p.path?.toLowerCase()===spotify.toLowerCase()).length,1,'Confirmed closed fixture was not restored');
+    await Optimizer.relaunchProcesses(result.closedApps);
+    assert.equal((await Scanner.getRunningProcesses({throwOnError:true})).filter(p=>p.path?.toLowerCase()===spotify.toLowerCase()).length,1,'Restore duplicated an already open fixture');
     assert.equal(await Optimizer.launchTarget(companion),true);await delay(1500);
     assert.equal(await Optimizer.launchTarget(companion),false);
     const processes=await Scanner.getRunningProcesses({throwOnError:true});
