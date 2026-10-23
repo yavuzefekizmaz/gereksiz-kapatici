@@ -57,7 +57,7 @@ test('machine scope remains explicit and /D stays last; watchdog launch is confi
   const info=await fixture(t);info.version='1.3.0';const calls=[];
   const exe=path.join(os.tmpdir(),'Installed App','Voldena.exe');
   await launchUpdateInstaller(info,exe,(file,args,options)=>{
-    calls.push({file,args,options});const child=new EventEmitter();child.unref=()=>{};queueMicrotask(()=>child.emit('spawn'));return child;
+    calls.push({file,args,options});const child=new EventEmitter();child.unref=()=>{};queueMicrotask(()=>{child.emit('spawn');child.emit('exit',0);});return child;
   },{allUsers:true,reportPath:path.join(os.tmpdir(),'update-result-test.json')});
   assert.equal(calls.length,2);assert.equal(calls[0].args.at(-1),`/D=${path.dirname(exe)}`);
   assert.ok(calls[0].args.includes('/allusers'));assert.equal(calls[1].file,'powershell.exe');
@@ -75,4 +75,23 @@ test('machine scope remains explicit and /D stays last; watchdog launch is confi
     const parser=`$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile('${parserFile.replace(/'/g,"''")}',[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|% Message;exit 1}`;
     require('child_process').execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(parser,'utf16le').toString('base64')],{windowsHide:true,timeout:10000});
   }
+});
+
+test('update handoff waits for the independent worker launcher and rejects launcher failure',async t=>{
+  const info=await fixture(t);info.version='1.5.1';let launcher;let completed=false;
+  const reportPath=path.join(os.tmpdir(),'watchdog-handoff-test.json');
+  const promise=launchUpdateInstaller(info,process.execPath,(file,args)=>{
+    const child=new EventEmitter();child.unref=()=>{};
+    if(file==='powershell.exe'){
+      launcher=child;
+      const script=Buffer.from(args.at(-1),'base64').toString('utf16le');
+      const workerFile=script.match(/ReadAllText\('([^']+)'\)/)[1];
+      t.after(()=>fs.rmSync(workerFile,{force:true}));
+    }
+    queueMicrotask(()=>child.emit('spawn'));return child;
+  },{reportPath}).finally(()=>{completed=true;});
+  while(!launcher)await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(completed,false,'spawn must not allow the parent to quit');
+  const rejected=assert.rejects(promise,/izleyicisi/);
+  launcher.emit('exit',1);await rejected;
 });

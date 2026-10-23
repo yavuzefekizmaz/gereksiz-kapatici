@@ -1,4 +1,6 @@
-# Voldena 1.5.0
+# Voldena 1.5.1
+
+- Confirms the independent update-check launcher has finished its handoff before the main application exits. This fixes a Windows startup race that prevented completion reports even when setup succeeded.
 
 - Disk scans now run only from the scan button. Per-drive/size results survive tab changes; concurrent requests share one scan. Cleanup distinguishes an empty result from partial/unreadable scans and reports inspected, recent, unsupported and excluded entries.
 - A guided first-run tour visits and highlights the real pages, then asks about hidden login startup, automatic game detection and global restore. It can be restarted from Settings. Login and X-to-tray behavior always remain hidden/background.
