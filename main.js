@@ -44,7 +44,8 @@ function setupWindowsAutoStart(enable) {
 }
 
 // Single Instance Lock
-app.disableHardwareAcceleration();
+// Keep a manual rendering fallback; normal scrolling uses GPU composition.
+if (process.argv.includes('--software-rendering')) app.disableHardwareAcceleration();
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -258,7 +259,7 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('memory-update', stats);
     }
     } finally { hardwareBusy = false; }
-  }, 1500);
+  }, 3000);
 
   // Once-only migration preserves an existing enabled startup preference after setup.
   if (!testMode && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE &&

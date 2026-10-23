@@ -4,14 +4,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   api.getInstallInfo().then(info=>{const outcome={'installed-and-restarted':'Güncelleme kuruldu ve yeniden açıldı.','installation-canceled-or-failed':'Son kurulum iptal edildi veya başarısız oldu; tekrar deneyin.','verification-failed':'Son kurulum doğrulanamadı.','handoff-not-completed':'Kurulum devri tamamlanmadı.'};document.getElementById('install-location').textContent=info.type+' • v'+info.version+' • '+info.exe+' '+(outcome[info.lastUpdate?.status]||'');});
   let exitDeadline = null;
+  function renderSessionResults(state) {
+    exitDeadline = state.exitDeadline;
+    const container = document.getElementById('session-results');
+    const report = state.report;
+    container.replaceChildren();
+    const items = [];
+    const outcomes = {closed:'Kapandı',partial:'Kısmen kapandı',failed:'Kapatılamadı',skipped:'Atlandı','not-running-or-inaccessible':'Çalışmıyor / erişilemiyor'};
+    for (const detail of report?.details || []) items.push(`${detail.name}: ${outcomes[detail.outcome] || detail.outcome}`);
+    for (const launch of report?.launches || []) items.push(`${launch.target}: ${launch.launched ? 'Başlatıldı' : 'Yeni örnek açılmadı'}`);
+    if (report && !items.length) items.push('İşlem tamamlandı; değiştirilecek uygulama yoktu.');
+    for (const text of items) {
+      const item = document.createElement('span'); item.className = 'session-result'; item.textContent = text; container.appendChild(item);
+    }
+    container.hidden = !items.length;
+  }
   api.onStatusChange(state=>{
+    renderSessionResults(state);
     exitDeadline=state.exitDeadline;
     const outcomes={closed:'Kapandı',partial:'Kısmen kapandı',failed:'Kapatılamadı',skipped:'Atlandı','not-running-or-inaccessible':'Çalışmıyor veya erişilemiyor'};
     const details=state.report?.details||[];
     const el=document.getElementById('session-exit-status');
     el.dataset.report=details.map(d=>d.name+': '+(outcomes[d.outcome]||d.outcome)).join(' • ');
   });
-  setInterval(()=>{const el=document.getElementById('session-exit-status');el.textContent=(exitDeadline?'Voldena '+Math.max(0,Math.ceil((exitDeadline-Date.now())/1000))+' saniye sonra kapanacak.':'Otomatik çıkış beklemiyor.')+' '+(el.dataset.report||'');},1000);
+  setInterval(()=>{if(document.hidden)return;const el=document.getElementById('session-exit-status');const text=(exitDeadline?'Voldena '+Math.max(0,Math.ceil((exitDeadline-Date.now())/1000))+' saniye sonra kapanacak.':'Otomatik çıkış beklemiyor.')+' '+(el.dataset.report||'');if(el.textContent!==text)el.textContent=text;},1000);
 
 
   // Global State
@@ -414,6 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initial Status Check on App Load
   try {
     const initialStatus = await api.getStatus();
+    if (initialStatus) renderSessionResults(initialStatus);
     if (initialStatus && initialStatus.activeRule) {
       const dot = document.getElementById('status-dot');
       const statusLabel = document.getElementById('status-label');

@@ -87,7 +87,7 @@
           </div>
         </div>
 
-        <!-- Metric Cards Grid (2x2 Balanced Layout) -->
+        <!-- Hardware/storage followed by a compact live session strip. -->
         <div class="cards-grid">
           <!-- CARD 1: RAM & CPU -->
           <div class="glass-card metric-card" style="display: flex; flex-direction: column; justify-content: space-between;">
@@ -114,7 +114,7 @@
             <!-- CPU Metric -->
             <div style="margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px;">
-                <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-bolt" style="color: #3b82f6; margin-right: 4px;"></i>İşlemci (CPU) Yükü</span>
+                <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;" title="Bilgisayardaki tüm uygulamaların toplam CPU kullanımı; 3 saniyelik ölçüm aralığı."><i class="fa-solid fa-bolt" style="color: #3b82f6; margin-right: 4px;"></i>Toplam CPU Yükü · 3 sn</span>
                 <span id="val-cpu-percent-text" style="font-size: 13px; font-weight: 700; color: #00f0ff;">0%</span>
               </div>
               <div class="progress-bar-bg" style="height: 5px; margin: 2px 0 4px 0;">
@@ -143,7 +143,7 @@
           </div>
 
           <!-- CARD 2: AKTİF OYUN -->
-          <div class="glass-card metric-card">
+          <div class="glass-card metric-card session-card">
             <div class="metric-card-header">
               <span class="metric-card-title">Aktif Oyun / Kural Modu</span>
               <i class="fa-solid fa-crosshairs card-icon"></i>
@@ -154,20 +154,7 @@
             <div class="metric-subtext" id="val-active-rule-sub">
               Şu an arka planda izlenen aktif oyun yok.
             </div>
-          </div>
-
-          <!-- CARD 3: OPTİMİZASYON SEVİYESİ -->
-          <div class="glass-card metric-card">
-            <div class="metric-card-header">
-              <span class="metric-card-title">Optimizasyon Seviyesi</span>
-              <i class="fa-solid fa-bolt card-icon"></i>
-            </div>
-            <div class="metric-value" id="val-active-preset-badge">
-              <span class="badge badge-medium">Orta Mod</span>
-            </div>
-            <div class="metric-subtext">
-              Seçili uygulamaları kapatma ve yardımcı uygulamaları açma.
-            </div>
+            <div class="session-results" id="session-results" hidden></div>
           </div>
 
           <!-- CARD 4: DİSKLER & SİSTEM DEPOLAMA -->

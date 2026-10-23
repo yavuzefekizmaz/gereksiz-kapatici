@@ -1,4 +1,8 @@
-# Voldena 1.4.0
+# Voldena 1.4.1
+
+Removes the empty optimization-level dashboard tile. Hardware and disks share the first row, followed by a compact game/session strip showing actual close/open outcomes. CPU is explicitly labeled as whole-PC utilization over a three-second interval. The settings presets remain available.
+
+Restores GPU composition for normal scrolling (optional `--software-rendering` fallback), removes card blur/shadow repaint costs, reduces GPU probes to once per ten seconds and hardware broadcasts to every three seconds. Background game polling no longer enumerates every application's window title or memory usage. Quick boost now waits for an ordinary process poll to finish rather than randomly refusing a shortcut click while polling.
 
 Adds **Voldena – Hızlandır ve Kapat**, a desktop and Start menu shortcut. It runs the same engine with `--quick-boost`: detects an already running game immediately, applies its enabled profile (or the automatic game defaults), records the result and exits completely. It also works when the normal app is already running. No game means no applications are closed. Busy optimization or update operations are not interrupted. This mode does not wait for a new game or the normal 60-second exit timer.
 

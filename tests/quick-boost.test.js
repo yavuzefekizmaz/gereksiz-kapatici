@@ -23,7 +23,13 @@ test('missing game and failed detection never apply a profile and always exit', 
   }
 });
 test('busy operation is neither interrupted nor quit',async()=>{
-  await quickBoost({isProcessing:true,stop(){assert.fail();}}, {notify(){},quit(){assert.fail();}});
+  await quickBoost({isProcessing:true,stop(){assert.fail();}}, {wait:async()=>{},notify(){},quit(){assert.fail();}});
+});
+test('ordinary process polling finishes before the requested quick boost runs',async()=>{
+  let waited=0,exited=false;
+  const monitor={isProcessing:true,stop(){},detectRunningGameNow:async()=>({isRunning:false})};
+  await quickBoost(monitor,{wait:async()=>{waited++;monitor.isProcessing=false;},memory:()=>({}),save(){},notify(){},quit(){exited=true;}});
+  assert.equal(waited,1);assert.equal(exited,true);
 });
 test('one-shot excludes configured IDEs and wallpaper helpers while protecting every active game',async()=>{
   const rules=['antigravity','webwallpaper64','cs2','othergame'].map(name=>({id:name,name,triggerProcess:name+'.exe',enabled:true,closeTargets:[]}));
