@@ -40,7 +40,10 @@ try {
       break
     }
   } while ((Get-Date) -lt $deadline)
-  if (!$verified) { throw 'Update did not replace the old version and automatically restart the installed app' }
+  if (!$verified) {
+    @{installedVersion=$file.VersionInfo.ProductVersion;runningCount=@($running).Count;watchdog=$watchdog;watchdogExists=(Test-Path $watchdogFile);exeExists=(Test-Path $exe);scope=$scope} | ConvertTo-Json -Depth 6 | Write-Host
+    throw 'Update did not replace the old version and automatically restart the installed app'
+  }
   Write-Host "Verified actual Windows update: 1.2.2 -> $version, same directory, automatic restart"
   $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
   if ($config.rules[0].id -ne 'preserved-profile' -or $config.customFutureValue -ne 'preserve-unknown-field') { throw 'Profiles or unknown fields were lost' }

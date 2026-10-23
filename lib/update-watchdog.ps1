@@ -1,8 +1,8 @@
 param([string]$Payload)
 $ErrorActionPreference = 'Stop'
 $data = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
-function Save-Result([string]$status) {
-  @{status=$status;expectedVersion=$data.version;time=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Compress | Set-Content -LiteralPath $data.reportPath -Encoding UTF8
+function Save-Result([string]$status,[string]$reason='') {
+  @{status=$status;reason=$reason;expectedVersion=$data.version;time=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Compress | Set-Content -LiteralPath $data.reportPath -Encoding UTF8
 }
 try {
   # Do not relaunch or interfere if the parent never relinquishes its installation.
@@ -22,4 +22,4 @@ try {
   Save-Result 'installation-canceled-or-failed'
   # An aborted UAC prompt/setup must not leave the user with a silently closed app.
   if (Test-Path -LiteralPath $data.exe) { Start-Process -FilePath $data.exe -WindowStyle Hidden }
-} catch { try { Save-Result 'verification-failed' } catch {} }
+} catch { try { Save-Result 'verification-failed' $_.Exception.Message } catch {} }
