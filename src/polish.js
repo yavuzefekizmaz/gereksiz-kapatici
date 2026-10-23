@@ -83,7 +83,13 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
   // More useful protection chips, using the same one-click protection behavior.
   const suggestions=document.querySelector('.quick-add-protected')?.parentElement;
-  if(suggestions){suggestions.classList.add('protection-suggestions');suggestions.replaceChildren(el('span','suggestion-heading','Hızlı korumaya al'));
+  if(suggestions){
+    const panel=el('details','protection-disclosure'),summary=el('summary'),copy=el('span','suggestion-summary-copy');
+    copy.append(el('strong','','Önerilen uygulamalar'),el('small','','İsterseniz sık kullanılan uygulamaları tek tıkla korumaya alın.'));
+    const indicator=el('span','suggestion-indicator','Göster');summary.append(copy,indicator);panel.append(summary);
+    suggestions.replaceWith(panel);suggestions.className='protection-suggestions';suggestions.removeAttribute('style');suggestions.replaceChildren();panel.append(suggestions);
+    panel.addEventListener('toggle',()=>{indicator.textContent=panel.open?'Gizle':'Göster';});
+    const list=document.getElementById('protected-apps-list'),heading=el('h3','protected-list-heading','Korumalı uygulamalarınız');list.before(heading);
     const options=[['VS Code','code.exe'],['AnyDesk','anydesk.exe'],['OneDrive','onedrive.exe'],['OBS Studio','obs64.exe'],['Discord','Discord.exe'],['Spotify','Spotify.exe'],['Chrome','chrome.exe'],['Opera','opera.exe'],['Steam','steam.exe'],['Riot Client','RiotClientServices.exe'],['Epic Games','EpicGamesLauncher.exe'],['Antigravity','antigravity.exe'],['ChatGPT','ChatGPT.exe'],['Telegram','Telegram.exe'],['WhatsApp','WhatsApp.exe'],['Wallpaper Engine','wallpaper64.exe'],['Clownfish','ClownfishVoiceChanger.exe'],['PowerToys','PowerToys.exe'],['Everything','Everything.exe'],['Valorant Tracker','Valorant Tracker.exe']];
     for(const [name,exe] of options){const button=el('button','protection-chip',name);button.type='button';button.dataset.appExe=exe;button.onclick=async()=>{const current=await api.getProtectedApps();if(!current.some(item=>item.toLowerCase()===exe.toLowerCase()))await api.updateProtectedApps([...current,exe]);button.classList.add('is-protected');button.title='Korumalı listeye eklendi';window.dispatchEvent(new Event('protected-apps-changed'));};suggestions.appendChild(button);}
   }

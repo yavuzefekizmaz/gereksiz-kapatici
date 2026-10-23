@@ -242,7 +242,8 @@ function createTray() {
 app.whenReady().then(() => {
   journal=new (require('./lib/operation-journal').OperationJournal)(app.getPath('userData'));
   journal.record('application-start',{version:app.getVersion(),mode:testMode?'isolated-test':pendingQuickBoost?'quick-boost':'normal',hidden:process.argv.includes('--startup')||process.argv.includes('--hidden'),exe:process.execPath});
-  appIcons=new (require('./lib/app-icons').AppIcons)(app,AppScanner);
+  appIcons=new (require('./lib/app-icons').AppIcons)(app,AppScanner,{hydrate:!testMode});
+  AppScanner.resolvedPathCache.set('voldena.exe',process.execPath);
   if(testMode)AppScanner.resolvedPathCache.set('voldenafixturegame.exe',process.execPath);
   if(process.platform==='win32')app.setAppUserModelId('com.voldena.gamebooster');
   for(const level of ['warn','error']){const original=console[level].bind(console);console[level]=(...args)=>{journal.record('engine-'+level,{message:args.map(arg=>arg instanceof Error?arg.stack:String(arg)).join(' ')},level);original(...args);};}

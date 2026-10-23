@@ -1,4 +1,7 @@
-# Voldena 1.6.3
+# Voldena 1.6.4
+
+- Protection suggestions now start collapsed in a separate panel, with a clear gap and heading before the protected list. Opening or closing the suggestions does not change protected apps.
+- Native artwork now discovers installed/running app locations once when first requested, so protected apps do not depend on previously opening the application picker. Friendly application names also resolve to known EXE artwork.
 
 - Adds the system-managed dismiss action required by Windows for a persistent reminder banner. The same tagged countdown still receives data-only updates; dismissing it does not open or focus the app.
 
